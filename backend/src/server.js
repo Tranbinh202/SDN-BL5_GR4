@@ -10,6 +10,8 @@ const messageRoutes = require("./routes/message.routes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const disputeRoutes = require("./routes/dispute.routes");
+const cartRouter = require('./routes/cartRouter');
+
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +35,10 @@ app.use('/api/categories', categoryRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/disputes", disputeRoutes);
+
+// Sử dụng route cho giỏ hàng
+app.use('/api/cart', cartRouter);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   logger.error(err.stack);

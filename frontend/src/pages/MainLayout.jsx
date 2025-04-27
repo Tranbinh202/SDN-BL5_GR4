@@ -15,6 +15,7 @@ import {
   FiShoppingCart,
   FiTrendingUp,
 } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 // Giả định các component này đã được tạo trong dự án của bạn
 import Footer from "../components/Footer";
@@ -22,6 +23,8 @@ import MainHeader from "../components/MainHeader";
 import Product from "../components/Product";
 import SubMenu from "../components/SubMenu";
 import TopMenu from "../components/TopMenu";
+
+
 
 // Dữ liệu mẫu cho banner quảng cáo
 const BANNER_SLIDES = [
@@ -171,6 +174,7 @@ const MainPage = () => {
   const categoriesRef = useRef(null);
   const filtersRef = useRef(null);
   const intervalRef = useRef(null); // Thêm ref để quản lý interval của banner
+  const navigate = useNavigate();
 
   // Fetch dữ liệu từ API
   useEffect(() => {
@@ -586,14 +590,8 @@ const MainPage = () => {
                 <div className="text-gray-400 mb-4">
                   <FiSearch size={48} className="mx-auto" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No products found
-                </h3>
-                <p className="text-gray-500">
-                  We couldn't find any products matching your criteria.
-                </p>
                 <button
-                  onClick={() => setSelectedCategory(null)}
+                  onClick={() => navigate("/products")}
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   View all products
