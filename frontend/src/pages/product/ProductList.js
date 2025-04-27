@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus } from "lucide-react";
+import TopMenu from "../../components/TopMenu";
+import SubMenu from "../../components/SubMenu";
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -45,7 +47,7 @@ export default function ProductList() {
         console.error("Seller ID is required but not found.");
         return;
       }
-  
+
       const productData = {
         title: newProduct.title,
         description: newProduct.description,
@@ -54,36 +56,36 @@ export default function ProductList() {
         categoryId: newProduct.categoryId,
         sellerId,
       };
-  
+
       // First, create the product without quantity
       const res = await fetch("http://localhost:5000/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productData),
       });
-  
+
       const data = await res.json();
-  
+
       if (res.ok) {
         // Create the inventory record with quantity
         const inventoryData = {
           productId: data._id,  // Use product ID from the newly created product
           quantity: parseInt(newProduct.quantity) || 0,
         };
-  
+
         // Send the inventory data to a separate endpoint
         await fetch("http://localhost:5000/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(inventoryData),
         });
-  
+
         // Refresh the product list
         fetch(`http://localhost:5000/api/products?sellerId=${sellerId}`)
           .then(res => res.json())
           .then(data => setProducts(data))
           .catch(err => console.error("Error fetching updated products:", err));
-  
+
         setShowModal(false);
         setNewProduct({
           title: "",
@@ -100,10 +102,16 @@ export default function ProductList() {
       console.error("Error adding product:", err);
     }
   };
-  
-  
+
+
   return (
     <>
+      <div className="bg-white shadow-sm">
+        <div className="max-w-[1300px] mx-auto">
+          <TopMenu />
+          <SubMenu />
+        </div>
+      </div>
       {/* HEADER + SEARCH */}
       <div className="border-b">
         <nav className="flex items-center justify-between w-full mx-auto max-w-[1200px]">
@@ -176,7 +184,6 @@ export default function ProductList() {
                 />
                 <h2 className="font-semibold text-sm">{product.title}</h2>
                 <p className="text-gray-600 text-sm">${(product.price / 100)}</p>
-                <p className="text-xs text-gray-500">{product.quantity} available</p>
               </Link>
             ))
           ) : (
