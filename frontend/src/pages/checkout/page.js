@@ -9,17 +9,23 @@ import TopMenu from "../../components/TopMenu";
 // Định nghĩa CheckoutItem
 function CheckoutItem({ product }) {
     return (
-        <div className="flex items-center gap-4 p-4 border-b">
-            <img
-                src={`${product.url}/100`}
-                alt={product.title}
-                className="w-[100px] h-[100px] object-cover rounded-lg"
-            />
-            <div>
-                <div className="font-semibold">{product.title}</div>
-                <div className="text-sm text-gray-500">{product.description}</div>
-                <div className="font-bold mt-2">
-                    £{(product.price * product.quantity / 100).toFixed(2)}
+        <div className="flex items-center justify-between gap-4 p-4 border-b">
+            <div className="flex items-center gap-4">
+                <img
+                    src={`${product.url}/100`}
+                    alt={product.title}
+                    className="w-[100px] h-[100px] object-cover rounded-lg"
+                />
+                <div>
+                    <div className="font-semibold text-base">{product.title}</div>
+                    <div className="text-sm text-gray-500">{product.description?.substring(0, 80)}...</div>
+                    <div className="mt-2 flex items-center gap-4">
+                        <div className="font-bold">£{(product.price / 100).toFixed(2)}</div>
+                        <div className="text-sm text-gray-500">Số lượng: <span className="font-semibold">{product.quantity}</span></div>
+                    </div>
+                    <div className="text-sm text-blue-600 mt-1">
+                        Thành tiền: £{((product.price * product.quantity) / 100).toFixed(2)}
+                    </div>
                 </div>
             </div>
         </div>
@@ -32,6 +38,33 @@ export default function Checkout() {
     const [addressDetails, setAddressDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    
+    // Thêm state cho mã giảm giá và phí vận chuyển
+    const [discountCode, setDiscountCode] = useState("");
+    const [discountAmount, setDiscountAmount] = useState(0);
+    const [discountError, setDiscountError] = useState("");
+    const [discountSuccess, setDiscountSuccess] = useState("");
+    const [shippingFee, setShippingFee] = useState(0);
+    const [shippingOption, setShippingOption] = useState("standard");
+    
+    // State cho form địa chỉ giao hàng mới
+    const [showAddressForm, setShowAddressForm] = useState(false);
+    const [formAddress, setFormAddress] = useState({
+        name: "",
+        address: "",
+        phone: "",
+        country: "Vietnam"
+    });
+    const [formErrors, setFormErrors] = useState({});
+    // Mặc định là true để không chặn người dùng thanh toán
+    const [addressValidated, setAddressValidated] = useState(true);
+
+    // Phí vận chuyển theo khu vực
+    const shippingRates = {
+        "hanoi": { standard: 0, express: 20000 },
+        "hcm": { standard: 0, express: 20000 },
+        "other": { standard: 30000, express: 50000 }
+    };
 
     // Hàm lấy dữ liệu từ API
     const fetchCartItems = async () => {
@@ -44,59 +77,41 @@ export default function Checkout() {
 
         try {
             console.log("Fetching cart for user:", currentUser.id);
-            const cartResponse = await fetch(
-                `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
-            );
-            if (!cartResponse.ok) {
-                throw new Error(`Failed to fetch cart: ${cartResponse.status}`);
+            // Sử dụng cùng endpoint API với trang Cart
+            const response = await fetch("http://localhost:5000/api/cart", {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch cart: ${response.status}`);
             }
-            const cartData = await cartResponse.json();
-            console.log("Cart data:", cartData);
-
-            if (!cartData || cartData.length === 0) {
-                console.log("No cart data found");
-                setCartItems([]);
-                setIsLoading(false);
-                return;
+            
+            const data = await response.json();
+            console.log("Cart data:", data);
+            
+            // Lấy danh sách sản phẩm từ đúng cấu trúc API
+            const cartProducts = data.cart?.products || [];
+            
+            // Chuyển đổi định dạng dữ liệu sản phẩm để phù hợp với trang checkout
+            const formattedProducts = cartProducts.map(item => ({
+                id: item.productId._id,
+                idProduct: item.productId._id,
+                cartItemId: item._id,
+                title: item.productId.title,
+                description: item.productId.description,
+                price: item.productId.price,
+                url: item.productId.image,
+                quantity: item.quantity
+            }));
+            
+            console.log("Formatted products:", formattedProducts);
+            setCartItems(formattedProducts);
+            
+            if (formattedProducts.length === 0) {
+                console.warn("No products found in cart");
             }
-
-            // Lấy chi tiết sản phẩm cho từng mục trong giỏ hàng
-            const itemsWithDetails = await Promise.all(
-                cartData.flatMap(cartItem =>
-                    cartItem.productId.map(async (product) => {
-                        console.log(`Fetching product with id: ${product.idProduct}`);
-                        const productResponse = await fetch(
-                            `http://localhost:9999/products?id=${product.idProduct}`
-                        );
-                        if (!productResponse.ok) {
-                            console.warn(`Failed to fetch product with id ${product.idProduct}: ${productResponse.status}`);
-                            return null;
-                        }
-                        const productData = await productResponse.json();
-                        console.log(`Product data for id ${product.idProduct}:`, productData);
-
-                        // Xử lý cả trường hợp API trả về mảng hoặc object
-                        let productInfo = Array.isArray(productData) ? productData[0] : productData;
-                        if (productInfo) {
-                            return {
-                                ...productInfo,
-                                quantity: parseInt(product.quantity),
-                                idProduct: product.idProduct,
-                                cartItemId: cartItem.id,
-                            };
-                        }
-                        console.warn(`No product data found for id ${product.idProduct}`);
-                        return null;
-                    })
-                )
-            );
-
-            const filteredItems = itemsWithDetails.filter(item => item !== null);
-            console.log("Filtered cart items:", filteredItems);
-            if (filteredItems.length === 0) {
-                console.warn("No valid products found in cart. Check if products exist in the database or if the API response format is correct.");
-            }
-            setCartItems(filteredItems);
         } catch (error) {
             console.error("Error fetching cart:", error);
             setCartItems([]);
@@ -111,40 +126,257 @@ export default function Checkout() {
 
         try {
             console.log("Fetching address for user:", currentUser.id);
-            const userResponse = await fetch(`http://localhost:9999/user?id=${currentUser.id}`);
+            // Sửa đường dẫn API user
+            const userResponse = await fetch(`http://localhost:5000/api/users/${currentUser.id}`);
             if (!userResponse.ok) {
                 throw new Error(`Failed to fetch user: ${userResponse.status}`);
             }
             const userData = await userResponse.json();
             console.log("User data:", userData);
-            const user = userData.find(user => user.id === currentUser.id); // Tìm user theo id
-            if (user) {
+            
+            // Kiểm tra dữ liệu người dùng hợp lệ
+            if (userData && userData.user) {
+                const user = userData.user;
+                // Chỉ hiển thị form địa chỉ khi không có dữ liệu hợp lệ
+                setShowAddressForm(false);
+                setAddressValidated(true);
                 setAddressDetails({
-                    name: user.fullname,
-                    address: user.address.street,
-                    zipcode: user.address.zipcode,
-                    city: user.address.city,
-                    country: user.address.country,
+                    name: user.fullname || user.username,
+                    address: user.address?.street || "",
+                    phone: user.phone || "",
+                    country: user.address?.country || "Vietnam",
                 });
+                
+                // Cập nhật phí vận chuyển
+                updateShippingFee("other", "standard");
             } else {
-                console.warn("User not found");
-                setAddressDetails({
-                    name: "N/A",
-                    address: "N/A",
-                    zipcode: "N/A",
-                    city: "N/A",
-                    country: "N/A",
-                });
+                console.warn("User has no valid address");
+                setShowAddressForm(true);
+                setAddressValidated(false);
+                setAddressDetails(null);
+                
+                // Mặc định phí vận chuyển cho khu vực khác
+                setShippingFee(shippingRates.other.standard);
             }
         } catch (error) {
             console.error("Error fetching address:", error);
-            setAddressDetails({
-                name: "N/A",
-                address: "N/A",
-                zipcode: "N/A",
-                city: "N/A",
-                country: "N/A",
+            setShowAddressForm(true);
+            setAddressValidated(false);
+            setAddressDetails(null);
+            
+            // Mặc định phí vận chuyển cho khu vực khác
+            setShippingFee(shippingRates.other.standard);
+        }
+    };
+
+    // Cập nhật phí vận chuyển dựa trên thành phố và loại vận chuyển
+    const updateShippingFee = (city, option) => {
+        let regionKey = "other";
+        
+        // Phí vận chuyển mặc định cho khu vực khác
+        setShippingFee(shippingRates[regionKey][option]);
+        setShippingOption(option);
+    };
+
+    // Hàm áp dụng mã giảm giá
+    const applyDiscountCode = async () => {
+        if (!discountCode) {
+            setDiscountError("Vui lòng nhập mã giảm giá");
+            setDiscountSuccess("");
+            return;
+        }
+        
+        try {
+            console.log(`Đang kiểm tra mã giảm giá: ${discountCode}`);
+            
+            // Gọi API kiểm tra mã giảm giá
+            const response = await fetch(`http://localhost:5000/api/coupons/verify/${discountCode}`);
+            const data = await response.json();
+            console.log("API response:", data);
+            
+            if (!response.ok) {
+                setDiscountError(data.message || "Mã giảm giá không hợp lệ");
+                setDiscountSuccess("");
+                setDiscountAmount(0);
+                return;
+            }
+            
+            // Nếu mã giảm giá hợp lệ
+            if (data.success) {
+                const coupon = data.coupon;
+                
+                // Nếu mã giảm giá áp dụng cho sản phẩm cụ thể
+                if (coupon.productId) {
+                    // Tìm sản phẩm trong giỏ hàng mà mã giảm giá áp dụng
+                    const applicableProduct = cartItems.find(item => item.id === coupon.productId);
+                    
+                    if (applicableProduct) {
+                        // Tính số tiền giảm giá chỉ cho sản phẩm đó
+                        const productTotal = applicableProduct.price * applicableProduct.quantity;
+                        const amount = (productTotal * coupon.discountPercent) / 100;
+                        setDiscountAmount(amount);
+                        setDiscountSuccess(`Giảm ${coupon.discountPercent}% cho sản phẩm ${applicableProduct.title}`);
+                    } else {
+                        setDiscountError("Mã giảm giá không áp dụng cho sản phẩm nào trong giỏ hàng");
+                        setDiscountSuccess("");
+                        setDiscountAmount(0);
+                        return;
+                    }
+                } else {
+                    // Áp dụng giảm giá cho toàn bộ đơn hàng
+                    if (coupon.code === "FREESHIP") {
+                        setShippingFee(0);
+                        setDiscountAmount(0);
+                        setDiscountSuccess("Miễn phí vận chuyển!");
+                    } else {
+                        // Tính số tiền giảm giá dựa trên phần trăm
+                        const amount = (getCartTotal() * coupon.discountPercent) / 100;
+                        setDiscountAmount(amount);
+                        setDiscountSuccess(`Giảm ${coupon.discountPercent}% tổng đơn hàng!`);
+                    }
+                }
+                
+                setDiscountError("");
+            } else {
+                setDiscountError("Mã giảm giá không hợp lệ");
+                setDiscountSuccess("");
+                setDiscountAmount(0);
+            }
+            
+            // Backup dự phòng nếu API không hoạt động
+            if (!response.ok) {
+                // Xử lý mã giảm giá cứng
+                if (discountCode === "SAVE10") {
+                    // Giảm 10% tổng đơn hàng
+                    const amount = (getCartTotal() * 10) / 100;
+                    setDiscountAmount(amount);
+                    setDiscountSuccess(`Giảm 10% tổng đơn hàng!`);
+                    setDiscountError("");
+                    return;
+                } else if (discountCode === "SAVE20") {
+                    // Giảm 20% tổng đơn hàng
+                    const amount = (getCartTotal() * 20) / 100;
+                    setDiscountAmount(amount);
+                    setDiscountSuccess(`Giảm 20% tổng đơn hàng!`);
+                    setDiscountError("");
+                    return;
+                } else if (discountCode === "FREESHIP") {
+                    // Miễn phí vận chuyển
+                    setShippingFee(0);
+                    setDiscountAmount(0);
+                    setDiscountSuccess("Miễn phí vận chuyển!");
+                    setDiscountError("");
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error("Error applying discount code:", error);
+            setDiscountError("Đã xảy ra lỗi khi áp dụng mã giảm giá");
+            setDiscountSuccess("");
+            setDiscountAmount(0);
+            
+            // Xử lý mã giảm giá cứng nếu có lỗi
+            if (discountCode === "SAVE10") {
+                // Giảm 10% tổng đơn hàng
+                const amount = (getCartTotal() * 10) / 100;
+                setDiscountAmount(amount);
+                setDiscountSuccess(`Giảm 10% tổng đơn hàng!`);
+                setDiscountError("");
+            } else if (discountCode === "SAVE20") {
+                // Giảm 20% tổng đơn hàng
+                const amount = (getCartTotal() * 20) / 100;
+                setDiscountAmount(amount);
+                setDiscountSuccess(`Giảm 20% tổng đơn hàng!`);
+                setDiscountError("");
+            } else if (discountCode === "FREESHIP") {
+                // Miễn phí vận chuyển
+                setShippingFee(0);
+                setDiscountAmount(0);
+                setDiscountSuccess("Miễn phí vận chuyển!");
+                setDiscountError("");
+            }
+        }
+    };
+    
+    // Xử lý thay đổi form địa chỉ
+    const handleFormChange = (e) => {
+        const { name, value } = e.target;
+        setFormAddress({
+            ...formAddress,
+            [name]: value
+        });
+        
+        // Xóa lỗi khi người dùng nhập
+        if (formErrors[name]) {
+            setFormErrors({
+                ...formErrors,
+                [name]: ""
             });
+        }
+        
+        // Cập nhật phí vận chuyển nếu thành phố thay đổi
+        if (name === "city") {
+            updateShippingFee(value, shippingOption);
+        }
+    };
+    
+    // Kiểm tra và lưu địa chỉ
+    const validateAndSaveAddress = () => {
+        const errors = {};
+        
+        // Kiểm tra các trường bắt buộc
+        if (!formAddress.name.trim()) errors.name = "Vui lòng nhập họ tên";
+        if (!formAddress.address.trim()) errors.address = "Vui lòng nhập địa chỉ";
+        if (!formAddress.phone.trim()) errors.phone = "Vui lòng nhập số điện thoại";
+        else if (!/^[0-9]{10,11}$/.test(formAddress.phone.trim())) {
+            errors.phone = "Số điện thoại không hợp lệ (10-11 số)";
+        }
+        
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            return false;
+        }
+        
+        // Tất cả trường đều hợp lệ
+        setAddressDetails({
+            ...formAddress,
+            zipcode: "",
+            city: ""
+        });
+        
+        // Ẩn form sau khi xác nhận
+        setShowAddressForm(false);
+        
+        // Cập nhật thông tin người dùng trên server (tùy chọn)
+        if (currentUser) {
+            updateUserAddress();
+        }
+        
+        return true;
+    };
+    
+    // Cập nhật địa chỉ người dùng trên server
+    const updateUserAddress = async () => {
+        try {
+            const response = await fetch(`http://localhost:9999/user/${currentUser.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    address: {
+                        street: formAddress.address,
+                        zipcode: "",
+                        city: "",
+                        country: formAddress.country
+                    },
+                    phone: formAddress.phone
+                }),
+            });
+            
+            if (!response.ok) {
+                console.error("Failed to update user address");
+            }
+        } catch (error) {
+            console.error("Error updating address:", error);
         }
     };
 
@@ -160,6 +392,12 @@ export default function Checkout() {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     };
 
+    // Tính tổng tiền cuối cùng sau khi áp dụng giảm giá và phí vận chuyển
+    const getFinalTotal = () => {
+        const subtotal = getCartTotal();
+        return subtotal - discountAmount + shippingFee;
+    };
+
     const handlePayment = async () => {
         if (!currentUser) {
             alert("Please login to checkout");
@@ -171,19 +409,40 @@ export default function Checkout() {
             alert("Your cart is empty!");
             return;
         }
+        
+        // Nếu đang hiển thị form, thử xác thực và lưu thông tin
+        if (showAddressForm) {
+            const isValid = validateAndSaveAddress();
+            if (!isValid) {
+                alert("Vui lòng điền đầy đủ thông tin giao hàng");
+                return;
+            }
+        }
+        
+        // Sử dụng thông tin địa chỉ từ formAddress nếu đang hiển thị form
+        const shippingAddress = showAddressForm ? formAddress : (addressDetails || {
+            name: currentUser.fullname || "N/A",
+            address: "N/A",
+            phone: "N/A",
+            country: "Vietnam"
+        });
 
         const orderId = "ORD" + Math.floor(100 + Math.random() * 900);
         const orderData = {
             order_id: orderId,
             user_id: currentUser.id,
             order_date: new Date().toISOString(),
-            total_amount: parseFloat((getCartTotal() / 100).toFixed(2)),
+            total_amount: parseFloat((getFinalTotal() / 100).toFixed(2)),
             status: "pending",
             items: cartItems.map(item => ({
                 product_name: item.title,
                 quantity: item.quantity,
                 price: parseFloat((item.price / 100).toFixed(2)),
-            }))
+            })),
+            shipping_fee: parseFloat((shippingFee / 100).toFixed(2)),
+            discount_code: discountCode || null,
+            discount_amount: parseFloat((discountAmount / 100).toFixed(2)),
+            shipping_address: shippingAddress
         };
 
         try {
@@ -216,8 +475,10 @@ export default function Checkout() {
             navigate("/success", {
                 state: {
                     cartItems: cartItems,
-                    addressDetails: addressDetails,
-                    orderTotal: getCartTotal(),
+                    addressDetails: addressDetails || formAddress,
+                    orderTotal: getFinalTotal(),
+                    shippingFee: shippingFee,
+                    discountAmount: discountAmount
                 },
             });
         } catch (error) {
@@ -270,41 +531,195 @@ export default function Checkout() {
                                     <div className="text-xl font-semibold mb-2">
                                         Shipping Address
                                     </div>
-                                    <div>
-                                        <a
-                                            href="/address"
-                                            className="text-blue-500 text-sm underline"
-                                        >
-                                            Update Address
-                                        </a>
-                                        {addressDetails ? (
-                                            <ul className="text-sm mt-2">
-                                                <li>Name: {addressDetails.name}</li>
-                                                <li>Address: {addressDetails.address}</li>
-                                                <li>Zip: {addressDetails.zipcode}</li>
-                                                <li>City: {addressDetails.city}</li>
-                                                <li>Country: {addressDetails.country}</li>
-                                            </ul>
-                                        ) : (
-                                            <div className="text-sm mt-2">
-                                                No address available
-                                            </div>
-                                        )}
+                                    
+                                    {showAddressForm ? (
+                                        <div className="mt-4">
+                                            <form className="space-y-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Họ tên <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="name"
+                                                        value={formAddress.name}
+                                                        onChange={handleFormChange}
+                                                        className={`mt-1 block w-full p-2 border ${formErrors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm`}
+                                                        placeholder="Nhập họ tên người nhận"
+                                                    />
+                                                    {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Số điện thoại <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="phone"
+                                                        value={formAddress.phone}
+                                                        onChange={handleFormChange}
+                                                        className={`mt-1 block w-full p-2 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm`}
+                                                        placeholder="Nhập số điện thoại"
+                                                    />
+                                                    {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Địa chỉ <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="address"
+                                                        value={formAddress.address}
+                                                        onChange={handleFormChange}
+                                                        className={`mt-1 block w-full p-2 border ${formErrors.address ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm`}
+                                                        placeholder="Nhập địa chỉ đầy đủ"
+                                                    />
+                                                    {formErrors.address && <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>}
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Quốc gia
+                                                    </label>
+                                                    <select
+                                                        name="country"
+                                                        value={formAddress.country}
+                                                        onChange={handleFormChange}
+                                                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                                                    >
+                                                        <option value="Vietnam">Việt Nam</option>
+                                                        <option value="United States">United States</option>
+                                                        <option value="United Kingdom">United Kingdom</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={validateAndSaveAddress}
+                                                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                                    >
+                                                        Xác nhận địa chỉ
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <button
+                                                onClick={() => setShowAddressForm(true)}
+                                                className="text-blue-500 text-sm underline"
+                                            >
+                                                Update Address
+                                            </button>
+                                            {addressDetails ? (
+                                                <ul className="text-sm mt-2">
+                                                    <li>Name: {addressDetails.name}</li>
+                                                    <li>Phone: {addressDetails.phone}</li>
+                                                    <li>Address: {addressDetails.address}</li>
+                                                    <li>Country: {addressDetails.country}</li>
+                                                </ul>
+                                            ) : (
+                                                <div className="text-sm mt-2">
+                                                    No address available
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Vận chuyển */}
+                                <div className="bg-white rounded-lg p-4 border mt-4">
+                                    <div className="text-xl font-semibold mb-2">
+                                        Shipping Options
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                id="standard" 
+                                                name="shipping" 
+                                                value="standard"
+                                                checked={shippingOption === "standard"}
+                                                onChange={() => updateShippingFee("", "standard")}
+                                                className="mr-2"
+                                            />
+                                            <label htmlFor="standard" className="flex justify-between w-full">
+                                                <span>Standard Shipping (3-5 days)</span>
+                                                <span className="font-semibold">
+                                                    {shippingRates["other"].standard === 0 
+                                                      ? "Free" : `£${(shippingRates["other"].standard / 100).toFixed(2)}`}
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                id="express" 
+                                                name="shipping" 
+                                                value="express"
+                                                checked={shippingOption === "express"}
+                                                onChange={() => updateShippingFee("", "express")}
+                                                className="mr-2"
+                                            />
+                                            <label htmlFor="express" className="flex justify-between w-full">
+                                                <span>Express Shipping (1-2 days)</span>
+                                                <span className="font-semibold">
+                                                    £{(shippingRates["other"].express / 100).toFixed(2)}
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div id="Items" className="bg-white rounded-lg mt-4">
+                                    <div className="p-4 border-b">
+                                        <h3 className="font-semibold text-lg">Đơn hàng của bạn</h3>
+                                    </div>
+                                    
                                     {cartItems.length === 0 ? (
                                         <div className="text-center py-4">
                                             No items in cart
                                         </div>
                                     ) : (
-                                        cartItems.map((product) => (
-                                            <CheckoutItem
-                                                key={`${product.cartItemId}-${product.idProduct}`}
-                                                product={product}
-                                            />
-                                        ))
+                                        <>
+                                            {cartItems.map((product) => (
+                                                <CheckoutItem
+                                                    key={`${product.cartItemId}-${product.idProduct}`}
+                                                    product={product}
+                                                />
+                                            ))}
+                                            
+                                            <div className="p-4 bg-gray-50">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="border-b">
+                                                            <th className="text-left py-2">Sản phẩm</th>
+                                                            <th className="text-center py-2">Số lượng</th>
+                                                            <th className="text-right py-2">Giá</th>
+                                                            <th className="text-right py-2">Tổng</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {cartItems.map((product) => (
+                                                            <tr key={`summary-${product.idProduct}`} className="border-b">
+                                                                <td className="py-2">{product.title}</td>
+                                                                <td className="text-center py-2">{product.quantity}</td>
+                                                                <td className="text-right py-2">£{(product.price / 100).toFixed(2)}</td>
+                                                                <td className="text-right py-2">£{((product.price * product.quantity) / 100).toFixed(2)}</td>
+                                                            </tr>
+                                                        ))}
+                                                        <tr className="font-semibold">
+                                                            <td colSpan="3" className="py-2 text-right">Tổng cộng:</td>
+                                                            <td className="py-2 text-right">£{(getCartTotal() / 100).toFixed(2)}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -314,6 +729,28 @@ export default function Checkout() {
                                 className="relative -top-[6px] w-[35%] border rounded-lg"
                             >
                                 <div className="p-4">
+                                    {/* Phần mã giảm giá */}
+                                    <div className="mb-4">
+                                        <div className="font-semibold mb-2">Apply Discount Code</div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={discountCode}
+                                                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                                                placeholder="Enter discount code"
+                                                className="flex-1 border p-2 rounded-sm"
+                                            />
+                                            <button
+                                                onClick={applyDiscountCode}
+                                                className="bg-blue-600 text-white px-3 py-2 rounded-sm hover:bg-blue-700"
+                                            >
+                                                Apply
+                                            </button>
+                                        </div>
+                                        {discountError && <div className="text-red-500 text-xs mt-1">{discountError}</div>}
+                                        {discountSuccess && <div className="text-green-500 text-xs mt-1">{discountSuccess}</div>}
+                                    </div>
+
                                     <div className="flex items-baseline justify-between text-sm mb-1">
                                         <div>
                                             Items (
@@ -321,17 +758,23 @@ export default function Checkout() {
                                         </div>
                                         <div>£{(getCartTotal() / 100).toFixed(2)}</div>
                                     </div>
-                                    <div className="flex items-center justify-between mb-4 text-sm">
+                                    <div className="flex items-center justify-between mb-1 text-sm">
                                         <div>Shipping:</div>
-                                        <div>Free</div>
+                                        <div>{shippingFee === 0 ? "Free" : `£${(shippingFee / 100).toFixed(2)}`}</div>
                                     </div>
+                                    {discountAmount > 0 && (
+                                        <div className="flex items-center justify-between mb-4 text-sm text-green-600">
+                                            <div>Discount:</div>
+                                            <div>-£{(discountAmount / 100).toFixed(2)}</div>
+                                        </div>
+                                    )}
 
                                     <div className="border-t" />
 
                                     <div className="flex items-center justify-between my-4">
                                         <div className="font-semibold">Order total</div>
                                         <div className="text-2xl font-semibold">
-                                            £{(getCartTotal() / 100).toFixed(2)}
+                                            £{(getFinalTotal() / 100).toFixed(2)}
                                         </div>
                                     </div>
 
@@ -340,7 +783,7 @@ export default function Checkout() {
                                     </div>
 
                                     <button
-                                        className="mt-4 bg-blue-600 text-lg w-full text-white font-semibold p-3 rounded-full hover:bg-blue-700"
+                                        className="mt-4 w-full font-semibold p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700"
                                         onClick={handlePayment}
                                     >
                                         Confirm and pay
