@@ -47,18 +47,12 @@ export default function AuthPage() {
         const data = await response.json();
 
         if (response.ok) {
-          // Store user data and token in localStorage
+          // Lưu token và thông tin người dùng vào localStorage
           localStorage.setItem("token", data.token);
           localStorage.setItem("currentUser", JSON.stringify(data.user));
 
-          // Check user role and redirect accordingly
-          if (data.user.role === "seller") {
-            navigate("/sell"); // Redirect sellers to sell page
-          } else if (data.user.role === "admin") {
-            navigate("/adminDashboard"); // Redirect admins to admin dashboard
-          } else {
-            navigate("/"); // Redirect regular users to home page
-          }
+          // Chuyển hướng về trang chủ
+          navigate("/"); // Chuyển hướng về trang /
         } else {
           setError(data.message || "Login failed");
         }
@@ -68,7 +62,7 @@ export default function AuthPage() {
       }
     } else {
       try {
-        // Register new user
+        // Xử lý đăng ký người dùng mới
         const registerResponse = await fetch(`${API_URL}/auth/register`, {
           method: "POST",
           headers: {
@@ -93,19 +87,19 @@ export default function AuthPage() {
         const registerData = await registerResponse.json();
 
         if (!registerResponse.ok) {
-          setError(registerData.message || "Đăng ký thất bại");
+          setError(registerData.message || "Registration failed");
           return;
         }
 
-        // Save user data and token to localStorage
+        // Lưu token và thông tin người dùng vào localStorage
         localStorage.setItem("token", registerData.token);
         localStorage.setItem("currentUser", JSON.stringify(registerData.user));
 
-        // Redirect to home page
+        // Chuyển hướng về trang chủ
         navigate("/");
       } catch (err) {
-        setError("Không thể kết nối tới server");
-        console.error("Lỗi đăng ký:", err);
+        setError("Unable to connect to the server");
+        console.error("Registration error:", err);
       }
     }
   };
