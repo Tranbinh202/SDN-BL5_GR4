@@ -26,7 +26,7 @@ class SocketService {
     }
 
     // Tạo kết nối socket mới với cấu hình đơn giản
-    this.socket = io("http://localhost:9999");
+    this.socket = io("http://localhost:5000");
 
     this.socket.on("connect", () => {
       console.log("Socket connected!");

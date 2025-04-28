@@ -24,8 +24,6 @@ import Product from "../components/Product";
 import SubMenu from "../components/SubMenu";
 import TopMenu from "../components/TopMenu";
 
-
-
 // Dữ liệu mẫu cho banner quảng cáo
 const BANNER_SLIDES = [
   {
@@ -180,11 +178,11 @@ const MainPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const productsResponse = await fetch("http://localhost:9999/products");
+        const productsResponse = await fetch("http://localhost:5000/products");
         const productsData = await productsResponse.json();
 
         const categoriesResponse = await fetch(
-          "http://localhost:9999/categories"
+          "http://localhost:5000/categories"
         );
         const categoriesData = await categoriesResponse.json();
 

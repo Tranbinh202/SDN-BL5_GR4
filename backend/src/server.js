@@ -14,6 +14,7 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const disputeRoutes = require("./routes/dispute.routes");
 const cartRouter = require("./routes/cartRouter");
 const couponRoutes = require("./routes/coupon.routes");
+const shoppingCartRoutes = require("./routes/shippingCartRoutes");
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/disputes", disputeRoutes);
+app.use("/shoppingCart", shoppingCartRoutes);
 
 // Sử dụng route cho giỏ hàng
 app.use("/api/cart", cartRouter);

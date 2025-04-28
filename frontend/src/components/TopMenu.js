@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
@@ -26,7 +26,7 @@ export default function TopMenu() {
       try {
         //console.log("Fetching cart count for user:", currentUser.id);
         const response = await fetch(
-          `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
+          `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch cart: ${response.status}`);
@@ -58,7 +58,7 @@ export default function TopMenu() {
             currentUser.id
           );
           const response = await fetch(
-            `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
+            `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
           );
           if (!response.ok) {
             throw new Error(`Failed to fetch cart: ${response.status}`);
