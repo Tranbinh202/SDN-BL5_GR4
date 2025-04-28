@@ -1,5 +1,6 @@
 const { User, Category, Product, Order, Store } = require("../models");
 const logger = require("../utils/logger");
+const { sendOrderStatusUpdateEmail } = require("../services/emailService");
 
 // Export all controller functions
 module.exports = {
@@ -473,6 +474,14 @@ module.exports = {
         });
       }
 
+      // Send email notification for status change
+      try {
+        await sendOrderStatusUpdateEmail(order, order.userId.email, status);
+      } catch (emailError) {
+        console.error("Failed to send status update email:", emailError);
+        // Don't fail the request if email fails
+      }
+
       res.status(200).json({
         success: true,
         message: "Order status updated successfully",
@@ -487,6 +496,7 @@ module.exports = {
       });
     }
   },
+
   // Store Management
   getAllStores: async (req, res) => {
     try {
