@@ -210,6 +210,7 @@ export default function Cart() {
                 <div className="flex items-center justify-between mb-4 text-sm">
                   <div>Shipping:</div>
                   <div>Free</div>
+                  <button> check</button>
                 </div>
 
                 <div className="border-b border-gray-300" />

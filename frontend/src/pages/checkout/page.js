@@ -4,15 +4,15 @@ import Footer from "../../components/Footer";
 import SubMenu from "../../components/SubMenu";
 import MainHeader from "../../components/MainHeader";
 import TopMenu from "../../components/TopMenu";
-
+import { PayPalButtons } from "@paypal/react-paypal-js";
 // Enable or disable debug logging
 const DEBUG = false;
 
 // Log helper function
 const debugLog = (...args) => {
-  if (DEBUG) {
-    console.log(...args);
-  }
+    if (DEBUG) {
+        console.log(...args);
+    }
 };
 
 // Track which errors have been logged to avoid duplicate error messages
@@ -20,15 +20,17 @@ const loggedErrors = new Set();
 
 // Custom error logger that ensures each unique error is only logged once
 const logErrorOnce = (error, context = '') => {
-  const errorKey = `${context}:${error.message || error}`;
-  if (!loggedErrors.has(errorKey)) {
-    console.error(`[${context}]`, error);
-    loggedErrors.add(errorKey);
-  }
+    const errorKey = `${context}:${error.message || error}`;
+    if (!loggedErrors.has(errorKey)) {
+        console.error(`[${context}]`, error);
+        loggedErrors.add(errorKey);
+    }
 };
 
 // Định nghĩa CheckoutItem
 function CheckoutItem({ product }) {
+
+
     return (
         <div className="flex items-center justify-between gap-4 p-4 border-b">
             <div className="flex items-center gap-4">
@@ -54,6 +56,7 @@ function CheckoutItem({ product }) {
 }
 
 export default function Checkout() {
+    const [payPalApprovalUrl, setPayPalApprovalUrl]=useState('')
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
     const [addressDetails, setAddressDetails] = useState(null);
@@ -61,7 +64,7 @@ export default function Checkout() {
     // Store the user ID as a separate value to avoid recreating the currentUser object
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     const userId = currentUser?.id;
-    
+
     // Thêm state cho mã giảm giá và phí vận chuyển
     const [discountCode, setDiscountCode] = useState("");
     const [discountAmount, setDiscountAmount] = useState(0);
@@ -69,7 +72,7 @@ export default function Checkout() {
     const [discountSuccess, setDiscountSuccess] = useState("");
     const [shippingFee, setShippingFee] = useState(0);
     const [shippingOption, setShippingOption] = useState("standard");
-    
+
     // State cho form địa chỉ giao hàng mới
     const [showAddressForm, setShowAddressForm] = useState(false);
     const [formAddress, setFormAddress] = useState({
@@ -106,17 +109,17 @@ export default function Checkout() {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Failed to fetch cart: ${response.status}`);
             }
-            
+
             const data = await response.json();
             debugLog("Cart data:", data);
-            
+
             // Lấy danh sách sản phẩm từ đúng cấu trúc API
             const cartProducts = data.cart?.products || [];
-            
+
             // Chuyển đổi định dạng dữ liệu sản phẩm để phù hợp với trang checkout
             const formattedProducts = cartProducts.map(item => ({
                 id: item.productId._id,
@@ -128,10 +131,10 @@ export default function Checkout() {
                 url: item.productId.image,
                 quantity: item.quantity
             }));
-            
+
             debugLog("Formatted products:", formattedProducts);
             setCartItems(formattedProducts);
-            
+
             if (formattedProducts.length === 0) {
                 console.warn("No products found in cart");
             }
@@ -160,7 +163,7 @@ export default function Checkout() {
             }
             const userData = await userResponse.json();
             debugLog("User data:", userData);
-            
+
             // Kiểm tra dữ liệu người dùng hợp lệ
             if (userData && userData.user) {
                 const user = userData.user;
@@ -173,7 +176,7 @@ export default function Checkout() {
                     phone: user.phone || "",
                     country: user.address?.country || "Vietnam",
                 });
-                
+
                 // Cập nhật phí vận chuyển
                 updateShippingFee("other", "standard");
             } else {
@@ -181,7 +184,7 @@ export default function Checkout() {
                 setShowAddressForm(true);
                 setAddressValidated(false);
                 setAddressDetails(null);
-                
+
                 // Mặc định phí vận chuyển cho khu vực khác
                 setShippingFee(shippingRates.other.standard);
             }
@@ -190,7 +193,7 @@ export default function Checkout() {
             setShowAddressForm(true);
             setAddressValidated(false);
             setAddressDetails(null);
-            
+
             // Mặc định phí vận chuyển cho khu vực khác
             setShippingFee(shippingRates.other.standard);
         }
@@ -199,7 +202,7 @@ export default function Checkout() {
     // Cập nhật phí vận chuyển dựa trên thành phố và loại vận chuyển
     const updateShippingFee = (city, option) => {
         let regionKey = "other";
-        
+
         // Phí vận chuyển mặc định cho khu vực khác
         setShippingFee(shippingRates[regionKey][option]);
         setShippingOption(option);
@@ -212,31 +215,31 @@ export default function Checkout() {
             setDiscountSuccess("");
             return;
         }
-        
+
         try {
             debugLog(`Đang kiểm tra mã giảm giá: ${discountCode}`);
-            
+
             // Gọi API kiểm tra mã giảm giá
             const response = await fetch(`http://localhost:5000/api/coupons/verify/${discountCode}`);
             const data = await response.json();
             debugLog("API response:", data);
-            
+
             if (!response.ok) {
                 setDiscountError(data.message || "Mã giảm giá không hợp lệ");
                 setDiscountSuccess("");
                 setDiscountAmount(0);
                 return;
             }
-            
+
             // Nếu mã giảm giá hợp lệ
             if (data.success) {
                 const coupon = data.coupon;
-                
+
                 // Nếu mã giảm giá áp dụng cho sản phẩm cụ thể
                 if (coupon.productId) {
                     // Tìm sản phẩm trong giỏ hàng mà mã giảm giá áp dụng
                     const applicableProduct = cartItems.find(item => item.id === coupon.productId);
-                    
+
                     if (applicableProduct) {
                         // Tính số tiền giảm giá chỉ cho sản phẩm đó
                         const productTotal = applicableProduct.price * applicableProduct.quantity;
@@ -262,14 +265,14 @@ export default function Checkout() {
                         setDiscountSuccess(`Giảm ${coupon.discountPercent}% tổng đơn hàng!`);
                     }
                 }
-                
+
                 setDiscountError("");
             } else {
                 setDiscountError("Mã giảm giá không hợp lệ");
                 setDiscountSuccess("");
                 setDiscountAmount(0);
             }
-            
+
             // Backup dự phòng nếu API không hoạt động
             if (!response.ok) {
                 // Xử lý mã giảm giá cứng
@@ -301,7 +304,7 @@ export default function Checkout() {
             setDiscountError("Đã xảy ra lỗi khi áp dụng mã giảm giá");
             setDiscountSuccess("");
             setDiscountAmount(0);
-            
+
             // Xử lý mã giảm giá cứng nếu có lỗi
             if (discountCode === "SAVE10") {
                 // Giảm 10% tổng đơn hàng
@@ -324,7 +327,7 @@ export default function Checkout() {
             }
         }
     };
-    
+
     // Xử lý thay đổi form địa chỉ
     const handleFormChange = (e) => {
         const { name, value } = e.target;
@@ -332,7 +335,7 @@ export default function Checkout() {
             ...formAddress,
             [name]: value
         });
-        
+
         // Xóa lỗi khi người dùng nhập
         if (formErrors[name]) {
             setFormErrors({
@@ -340,17 +343,17 @@ export default function Checkout() {
                 [name]: ""
             });
         }
-        
+
         // Cập nhật phí vận chuyển nếu thành phố thay đổi
         if (name === "city") {
             updateShippingFee(value, shippingOption);
         }
     };
-    
+
     // Kiểm tra và lưu địa chỉ
     const validateAndSaveAddress = () => {
         const errors = {};
-        
+
         // Kiểm tra các trường bắt buộc
         if (!formAddress.name.trim()) errors.name = "Vui lòng nhập họ tên";
         if (!formAddress.address.trim()) errors.address = "Vui lòng nhập địa chỉ";
@@ -358,41 +361,41 @@ export default function Checkout() {
         else if (!/^[0-9]{10,11}$/.test(formAddress.phone.trim())) {
             errors.phone = "Số điện thoại không hợp lệ (10-11 số)";
         }
-        
+
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
             return false;
         }
-        
+
         // Tất cả trường đều hợp lệ
         setAddressDetails({
             ...formAddress,
             zipcode: "",
             city: ""
         });
-        
+
         // Ẩn form sau khi xác nhận
         setShowAddressForm(false);
-        
+
         // Cập nhật thông tin người dùng trên server (tùy chọn)
         if (currentUser) {
             updateUserAddress();
         }
-        
+
         return true;
     };
-    
+
     // Cập nhật địa chỉ người dùng trên server
     const updateUserAddress = async () => {
         try {
             // Sử dụng API admin để cập nhật thông tin người dùng
             const response = await fetch(`http://localhost:5000/api/admin/users/${currentUser.id}`, {
                 method: "PUT",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     address: {
                         street: formAddress.address,
                         zipcode: "",
@@ -402,7 +405,7 @@ export default function Checkout() {
                     phone: formAddress.phone
                 }),
             });
-            
+
             if (!response.ok) {
                 logErrorOnce(new Error("Failed to update user address"), "updateUserAddress");
             }
@@ -417,7 +420,7 @@ export default function Checkout() {
             setIsLoading(false);
             return;
         }
-        
+
         const fetchData = async () => {
             await Promise.all([fetchCartItems(), fetchAddressDetails()]);
         };
@@ -447,7 +450,7 @@ export default function Checkout() {
             alert("Your cart is empty!");
             return;
         }
-        
+
         // Nếu đang hiển thị form, thử xác thực và lưu thông tin
         if (showAddressForm) {
             const isValid = validateAndSaveAddress();
@@ -456,7 +459,7 @@ export default function Checkout() {
                 return;
             }
         }
-        
+
         // Sử dụng thông tin địa chỉ từ formAddress nếu đang hiển thị form
         const shippingAddress = showAddressForm ? formAddress : (addressDetails || {
             name: currentUser.fullname || "N/A",
@@ -484,35 +487,51 @@ export default function Checkout() {
         };
 
         try {
-            // 1. Lưu đơn hàng mới vào orders
+           
             await fetch("http://localhost:5000/api/admin/orders", {
                 method: "POST",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
                 body: JSON.stringify(orderData),
             });
 
-            // 2. Không cần cập nhật user.order_id, điều này sẽ được xử lý bởi backend
-            
-            // 3. Xoá toàn bộ giỏ hàng sau khi thanh toán
+           
             const cartRes = await fetch(`http://localhost:5000/api/cart`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
             });
             const cartData = await cartRes.json();
-            
+
             // Xóa từng sản phẩm trong giỏ hàng
             for (let product of cartData.cart?.products || []) {
-                await fetch(`http://localhost:5000/api/cart/remove/${product.productId._id}`, { 
+                await fetch(`http://localhost:5000/api/cart/remove/${product.productId._id}`, {
                     method: "DELETE",
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem("token")}`,
                     }
                 });
             }
+            const orderData = {
+                orderId: `ORD${Math.floor(100 + Math.random() * 900)}`,
+                totalAmount: getFinalTotal(), // Use your method to calculate the final amount
+            };
+            const response = await fetch('http://localhost:5000/api/paypal/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setPayPalApprovalUrl(data.approvalUrl);
+            } else {
+                alert('Error while creating PayPal order');
+            }
+
 
             // Điều hướng đến trang success
             navigate("/success", {
@@ -574,7 +593,7 @@ export default function Checkout() {
                                     <div className="text-xl font-semibold mb-2">
                                         Shipping Address
                                     </div>
-                                    
+
                                     {showAddressForm ? (
                                         <div className="mt-4">
                                             <form className="space-y-4">
@@ -592,7 +611,7 @@ export default function Checkout() {
                                                     />
                                                     {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                                                 </div>
-                                                
+
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700">
                                                         Số điện thoại <span className="text-red-500">*</span>
@@ -607,7 +626,7 @@ export default function Checkout() {
                                                     />
                                                     {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                                                 </div>
-                                                
+
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700">
                                                         Địa chỉ <span className="text-red-500">*</span>
@@ -622,7 +641,7 @@ export default function Checkout() {
                                                     />
                                                     {formErrors.address && <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>}
                                                 </div>
-                                                
+
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700">
                                                         Quốc gia
@@ -638,7 +657,7 @@ export default function Checkout() {
                                                         <option value="United Kingdom">United Kingdom</option>
                                                     </select>
                                                 </div>
-                                                
+
                                                 <div className="flex justify-end">
                                                     <button
                                                         type="button"
@@ -681,10 +700,10 @@ export default function Checkout() {
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center">
-                                            <input 
-                                                type="radio" 
-                                                id="standard" 
-                                                name="shipping" 
+                                            <input
+                                                type="radio"
+                                                id="standard"
+                                                name="shipping"
                                                 value="standard"
                                                 checked={shippingOption === "standard"}
                                                 onChange={() => updateShippingFee("", "standard")}
@@ -693,16 +712,16 @@ export default function Checkout() {
                                             <label htmlFor="standard" className="flex justify-between w-full">
                                                 <span>Standard Shipping (3-5 days)</span>
                                                 <span className="font-semibold">
-                                                    {shippingRates["other"].standard === 0 
-                                                      ? "Free" : `£${(shippingRates["other"].standard / 100).toFixed(2)}`}
+                                                    {shippingRates["other"].standard === 0
+                                                        ? "Free" : `£${(shippingRates["other"].standard / 100).toFixed(2)}`}
                                                 </span>
                                             </label>
                                         </div>
                                         <div className="flex items-center">
-                                            <input 
-                                                type="radio" 
-                                                id="express" 
-                                                name="shipping" 
+                                            <input
+                                                type="radio"
+                                                id="express"
+                                                name="shipping"
                                                 value="express"
                                                 checked={shippingOption === "express"}
                                                 onChange={() => updateShippingFee("", "express")}
@@ -722,7 +741,7 @@ export default function Checkout() {
                                     <div className="p-4 border-b">
                                         <h3 className="font-semibold text-lg">Đơn hàng của bạn</h3>
                                     </div>
-                                    
+
                                     {cartItems.length === 0 ? (
                                         <div className="text-center py-4">
                                             No items in cart
@@ -735,7 +754,7 @@ export default function Checkout() {
                                                     product={product}
                                                 />
                                             ))}
-                                            
+
                                             <div className="p-4 bg-gray-50">
                                                 <table className="w-full">
                                                     <thead>
@@ -772,7 +791,7 @@ export default function Checkout() {
                                 className="relative -top-[6px] w-[35%] border rounded-lg"
                             >
                                 <div className="p-4">
-                                    {/* Phần mã giảm giá */}
+                                   
                                     <div className="mb-4">
                                         <div className="font-semibold mb-2">Apply Discount Code</div>
                                         <div className="flex gap-2">
@@ -825,13 +844,37 @@ export default function Checkout() {
                                         <div className="text-gray-500 text-center">Payment Form</div>
                                     </div>
 
-                                    <button
-                                        className="mt-4 w-full font-semibold p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700"
-                                        onClick={handlePayment}
-                                    >
-                                        Confirm and pay
-                                    </button>
+                                    <PayPalButtons
+                                    createOrder={(data, actions) => {
+                                        return actions.order.create({
+                                            purchase_units: [{
+                                                amount: {
+                                                    value: getFinalTotal(), 
+                                                },
+                                              
+                                            }],
+                                        });
+                                    }}
+                                    onApprove={async (data, actions) => {
+                                       
+                                        const captureData = await actions.order.capture();
+
+                                    
+                                        await fetch('http://localhost:5000/api/paypal/capture-payment', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                orderId: captureData.id,
+                                                payerId: captureData.payer.payer_id,
+                                            }),
+                                        });
+
+                                    
+                                        navigate("/success");
+                                    }}
+                                />
                                 </div>
+                               
 
                                 <div className="flex items-center p-4 justify-center gap-2 border-t">
                                     <img width={50} src="/images/logo.svg" alt="Logo" />
