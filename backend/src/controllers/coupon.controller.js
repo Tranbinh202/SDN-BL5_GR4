@@ -42,6 +42,61 @@ const getCouponBySellerID = async (req, res) => {
     }
 };
 
+const verifyCoupon = async (req, res) => {
+    try {
+        const { code } = req.params;
+        
+        const coupon = await Coupon.findOne({ code: code.toUpperCase() });
+        
+        if (!coupon) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Mã giảm giá không tồn tại" 
+            });
+        }
+        
+        const now = new Date();
+        
+        if (now > new Date(coupon.endDate)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mã giảm giá đã hết hạn" 
+            });
+        }
+        
+        if (now < new Date(coupon.startDate)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mã giảm giá chưa có hiệu lực" 
+            });
+        }
+        
+        if (coupon.maxUsage !== null && coupon.usageCount >= coupon.maxUsage) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mã giảm giá đã hết lượt sử dụng" 
+            });
+        }
+        
+        return res.status(200).json({
+            success: true,
+            message: "Mã giảm giá hợp lệ",
+            coupon: {
+                code: coupon.code,
+                discountPercent: coupon.discountPercent,
+                productId: coupon.productId
+            }
+        });
+        
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: "Đã xảy ra lỗi", 
+            error: error.message 
+        });
+    }
+};
+
 const updateCoupon = async (req, res) => {
     try {
         const { code, discountPercent, startDate, endDate, maxUsage, productId } =
@@ -81,4 +136,5 @@ module.exports = {
     getAllCoupons,
     updateCoupon,
     deleteCoupon,
+    verifyCoupon
 };

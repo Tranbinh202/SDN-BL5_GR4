@@ -7,5 +7,6 @@ router.get("/seller/:sellerId", CouponController.getCouponBySellerID);
 router.get("/all", CouponController.getAllCoupons);
 router.put("/update/:id", CouponController.updateCoupon);
 router.delete("/delete/:id", CouponController.deleteCoupon);
+router.get("/verify/:code", CouponController.verifyCoupon);
 
 module.exports = router;

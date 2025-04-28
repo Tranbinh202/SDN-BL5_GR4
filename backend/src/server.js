@@ -11,6 +11,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const disputeRoutes = require("./routes/dispute.routes");
 const cartRouter = require('./routes/cartRouter');
+const couponRoutes = require('./routes/coupon.routes');
 
 
 // Load environment variables
@@ -38,6 +39,9 @@ app.use("/api/disputes", disputeRoutes);
 
 // Sử dụng route cho giỏ hàng
 app.use('/api/cart', cartRouter);
+
+// Sử dụng route cho mã giảm giá
+app.use('/api/coupons', couponRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
