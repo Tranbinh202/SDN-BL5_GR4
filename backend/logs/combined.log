@@ -84,3 +84,5 @@
 {"level":"info","message":"MongoDB connected","service":"e-commerce-api","timestamp":"2025-04-28 14:24:34"}
 {"level":"info","message":"Server running on port 5000","service":"e-commerce-api","timestamp":"2025-04-28 14:31:37"}
 {"level":"info","message":"MongoDB connected","service":"e-commerce-api","timestamp":"2025-04-28 14:31:37"}
+{"level":"info","message":"Server running on port 5000","service":"e-commerce-api","timestamp":"2025-04-28 16:05:40"}
+{"level":"info","message":"MongoDB connected","service":"e-commerce-api","timestamp":"2025-04-28 16:05:40"}
