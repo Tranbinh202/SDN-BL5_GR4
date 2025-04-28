@@ -2,6 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
+// Enable or disable debug logging
+const DEBUG = false;
+
+// Log helper function
+const debugLog = (...args) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
+// Track which errors have been logged to avoid duplicate error messages
+const loggedErrors = new Set();
+
+// Custom error logger that ensures each unique error is only logged once
+const logErrorOnce = (error, context = '') => {
+  const errorKey = `${context}:${error.message || error}`;
+  if (!loggedErrors.has(errorKey)) {
+    console.error(`[${context}]`, error);
+    loggedErrors.add(errorKey);
+  }
+};
+
 export default function TopMenu() {
   const [isMenu, setIsMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -24,54 +46,60 @@ export default function TopMenu() {
       }
 
       try {
-        //console.log("Fetching cart count for user:", currentUser.id);
+        debugLog("Fetching cart count for user:", currentUser.id);
         const response = await fetch(
-          `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
+          `http://localhost:5000/api/cart`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch cart: ${response.status}`);
         }
-        const cartItems = await response.json();
-        console.log("Cart items for count:", cartItems);
-        const totalProducts = cartItems.reduce(
-          (sum, item) => sum + item.productId.length,
-          0
-        );
+        const data = await response.json();
+        debugLog("Cart items for count:", data);
+        
+        // Update to match the correct API response structure
+        const totalProducts = data.cart?.products?.length || 0;
         setCartCount(totalProducts);
       } catch (error) {
-        //console.error("Error fetching cart count:", error);
+        logErrorOnce(error, "fetchCartCount");
         setCartCount(0);
       }
     };
 
-    //fetchCartCount();
-    const interval = setInterval(fetchCartCount, 3000);
-    return () => clearInterval(interval);
+    // Only fetch once when user changes, not every 3 seconds
+    fetchCartCount();
+    
+    // No need for polling interval that could cause excessive API calls
+    // const interval = setInterval(fetchCartCount, 3000);
+    // return () => clearInterval(interval);
   }, [currentUser]);
 
   useEffect(() => {
     if (currentUser) {
       const fetchCartCount = async () => {
         try {
-          console.log(
-            "Fetching cart count on route change for user:",
-            currentUser.id
-          );
+          debugLog("Fetching cart count on route change for user:", currentUser.id);
           const response = await fetch(
-            `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
+            `http://localhost:5000/api/cart`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
           );
           if (!response.ok) {
             throw new Error(`Failed to fetch cart: ${response.status}`);
           }
-          const cartItems = await response.json();
-          console.log("Cart items on route change:", cartItems);
-          const totalProducts = cartItems.reduce(
-            (sum, item) => sum + item.productId.length,
-            0
-          );
+          const data = await response.json();
+          debugLog("Cart items on route change:", data);
+          
+          // Update to match the correct API response structure
+          const totalProducts = data.cart?.products?.length || 0;
           setCartCount(totalProducts);
         } catch (error) {
-          console.error("Error fetching cart count:", error);
+          logErrorOnce(error, "fetchCartCountOnRouteChange");
         }
       };
       fetchCartCount();

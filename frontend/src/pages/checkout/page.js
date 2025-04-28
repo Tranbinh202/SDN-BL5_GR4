@@ -1,10 +1,31 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Footer from "../../components/Footer";
 import SubMenu from "../../components/SubMenu";
 import MainHeader from "../../components/MainHeader";
 import TopMenu from "../../components/TopMenu";
 
+// Enable or disable debug logging
+const DEBUG = false;
+
+// Log helper function
+const debugLog = (...args) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
+// Track which errors have been logged to avoid duplicate error messages
+const loggedErrors = new Set();
+
+// Custom error logger that ensures each unique error is only logged once
+const logErrorOnce = (error, context = '') => {
+  const errorKey = `${context}:${error.message || error}`;
+  if (!loggedErrors.has(errorKey)) {
+    console.error(`[${context}]`, error);
+    loggedErrors.add(errorKey);
+  }
+};
 
 // Định nghĩa CheckoutItem
 function CheckoutItem({ product }) {
@@ -37,7 +58,9 @@ export default function Checkout() {
     const [cartItems, setCartItems] = useState([]);
     const [addressDetails, setAddressDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    // Store the user ID as a separate value to avoid recreating the currentUser object
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    const userId = currentUser?.id;
     
     // Thêm state cho mã giảm giá và phí vận chuyển
     const [discountCode, setDiscountCode] = useState("");
@@ -69,14 +92,14 @@ export default function Checkout() {
     // Hàm lấy dữ liệu từ API
     const fetchCartItems = async () => {
         if (!currentUser) {
-            console.log("No current user, setting empty cart")
+            debugLog("No current user, setting empty cart");
             setCartItems([]);
             setIsLoading(false);
             return;
         }
 
         try {
-            console.log("Fetching cart for user:", currentUser.id);
+            debugLog("Fetching cart for user:", currentUser.id);
             // Sử dụng cùng endpoint API với trang Cart
             const response = await fetch("http://localhost:5000/api/cart", {
                 headers: {
@@ -89,7 +112,7 @@ export default function Checkout() {
             }
             
             const data = await response.json();
-            console.log("Cart data:", data);
+            debugLog("Cart data:", data);
             
             // Lấy danh sách sản phẩm từ đúng cấu trúc API
             const cartProducts = data.cart?.products || [];
@@ -106,14 +129,14 @@ export default function Checkout() {
                 quantity: item.quantity
             }));
             
-            console.log("Formatted products:", formattedProducts);
+            debugLog("Formatted products:", formattedProducts);
             setCartItems(formattedProducts);
             
             if (formattedProducts.length === 0) {
                 console.warn("No products found in cart");
             }
         } catch (error) {
-            console.error("Error fetching cart:", error);
+            logErrorOnce(error, "fetchCartItems");
             setCartItems([]);
         } finally {
             setIsLoading(false);
@@ -125,14 +148,18 @@ export default function Checkout() {
         if (!currentUser) return;
 
         try {
-            console.log("Fetching address for user:", currentUser.id);
-            // Sửa đường dẫn API user
-            const userResponse = await fetch(`http://localhost:5000/api/users/${currentUser.id}`);
+            debugLog("Fetching address for user:", currentUser.id);
+            // Sửa đường dẫn API user để sử dụng auth/me endpoint
+            const userResponse = await fetch(`http://localhost:5000/api/auth/me`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                }
+            });
             if (!userResponse.ok) {
                 throw new Error(`Failed to fetch user: ${userResponse.status}`);
             }
             const userData = await userResponse.json();
-            console.log("User data:", userData);
+            debugLog("User data:", userData);
             
             // Kiểm tra dữ liệu người dùng hợp lệ
             if (userData && userData.user) {
@@ -159,7 +186,7 @@ export default function Checkout() {
                 setShippingFee(shippingRates.other.standard);
             }
         } catch (error) {
-            console.error("Error fetching address:", error);
+            logErrorOnce(error, "fetchAddressDetails");
             setShowAddressForm(true);
             setAddressValidated(false);
             setAddressDetails(null);
@@ -187,12 +214,12 @@ export default function Checkout() {
         }
         
         try {
-            console.log(`Đang kiểm tra mã giảm giá: ${discountCode}`);
+            debugLog(`Đang kiểm tra mã giảm giá: ${discountCode}`);
             
             // Gọi API kiểm tra mã giảm giá
             const response = await fetch(`http://localhost:5000/api/coupons/verify/${discountCode}`);
             const data = await response.json();
-            console.log("API response:", data);
+            debugLog("API response:", data);
             
             if (!response.ok) {
                 setDiscountError(data.message || "Mã giảm giá không hợp lệ");
@@ -270,7 +297,7 @@ export default function Checkout() {
                 }
             }
         } catch (error) {
-            console.error("Error applying discount code:", error);
+            logErrorOnce(error, "applyDiscountCode");
             setDiscountError("Đã xảy ra lỗi khi áp dụng mã giảm giá");
             setDiscountSuccess("");
             setDiscountAmount(0);
@@ -358,9 +385,13 @@ export default function Checkout() {
     // Cập nhật địa chỉ người dùng trên server
     const updateUserAddress = async () => {
         try {
-            const response = await fetch(`http://localhost:9999/user/${currentUser.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
+            // Sử dụng API admin để cập nhật thông tin người dùng
+            const response = await fetch(`http://localhost:5000/api/admin/users/${currentUser.id}`, {
+                method: "PUT",
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
                 body: JSON.stringify({ 
                     address: {
                         street: formAddress.address,
@@ -373,19 +404,26 @@ export default function Checkout() {
             });
             
             if (!response.ok) {
-                console.error("Failed to update user address");
+                logErrorOnce(new Error("Failed to update user address"), "updateUserAddress");
             }
         } catch (error) {
-            console.error("Error updating address:", error);
+            logErrorOnce(error, "updateUserAddress");
         }
     };
 
     useEffect(() => {
+        // Skip effect if there's no user ID
+        if (!userId) {
+            setIsLoading(false);
+            return;
+        }
+        
         const fetchData = async () => {
             await Promise.all([fetchCartItems(), fetchAddressDetails()]);
         };
         fetchData();
-    }, [currentUser]);
+        // Only depend on userId, which is a stable primitive value
+    }, [userId]);
 
     // Tính tổng tiền
     const getCartTotal = () => {
@@ -447,29 +485,34 @@ export default function Checkout() {
 
         try {
             // 1. Lưu đơn hàng mới vào orders
-            await fetch("http://localhost:9999/orders", {
+            await fetch("http://localhost:5000/api/admin/orders", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
                 body: JSON.stringify(orderData),
             });
 
-            // 2. Cập nhật user.order_id
-            const updatedOrderIds = [...(currentUser.order_id || []), orderId];
-            await fetch(`http://localhost:9999/user/${currentUser.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ order_id: updatedOrderIds }),
-            });
-
+            // 2. Không cần cập nhật user.order_id, điều này sẽ được xử lý bởi backend
+            
             // 3. Xoá toàn bộ giỏ hàng sau khi thanh toán
-            const cartRes = await fetch(`http://localhost:9999/shoppingCart?userId=${currentUser.id}`);
+            const cartRes = await fetch(`http://localhost:5000/api/cart`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
             const cartData = await cartRes.json();
-            for (let cart of cartData) {
-                await fetch(`http://localhost:9999/shoppingCart/${cart.id}`, { method: "DELETE" });
+            
+            // Xóa từng sản phẩm trong giỏ hàng
+            for (let product of cartData.cart?.products || []) {
+                await fetch(`http://localhost:5000/api/cart/remove/${product.productId._id}`, { 
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    }
+                });
             }
-
-            // Cập nhật localStorage
-            localStorage.setItem("currentUser", JSON.stringify({ ...currentUser, order_id: updatedOrderIds }));
 
             // Điều hướng đến trang success
             navigate("/success", {
@@ -482,7 +525,7 @@ export default function Checkout() {
                 },
             });
         } catch (error) {
-            console.error("Payment error:", error);
+            logErrorOnce(error, "handlePayment");
             alert("Đã xảy ra lỗi khi thanh toán.");
         }
     };
