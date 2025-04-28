@@ -53,6 +53,30 @@ function CheckoutItem({ product }) {
     );
 }
 
+// Send mail
+const sendOrderConfirmationEmail = async (orderDetails, customerEmail) => {
+    try {
+        const response = await fetch("http://localhost:5000/api/email/send-order-confirmation", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ orderDetails, customerEmail }),
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to send order confirmation email");
+        }
+
+        const data = await response.json();
+        console.log("Order confirmation email sent successfully:", data);
+    } catch (error) {
+        console.error("Error sending order confirmation email:", error);
+        throw error;
+    }
+};
+
 export default function Checkout() {
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
@@ -494,7 +518,13 @@ export default function Checkout() {
                 body: JSON.stringify(orderData),
             });
 
-            // 2. Không cần cập nhật user.order_id, điều này sẽ được xử lý bởi backend
+            // 2. Send confirmation email
+            await sendOrderConfirmationEmail({
+                orderId: orderId,
+                totalAmount: parseFloat((getFinalTotal() / 100).toFixed(2)),
+                paymentMethod: "Credit Card", // You can make this dynamic based on actual payment method
+                shippingAddress: shippingAddress
+            }, currentUser.email);
             
             // 3. Xoá toàn bộ giỏ hàng sau khi thanh toán
             const cartRes = await fetch(`http://localhost:5000/api/cart`, {
