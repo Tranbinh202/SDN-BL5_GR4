@@ -5,7 +5,6 @@ import SubMenu from "../../components/SubMenu";
 import MainHeader from "../../components/MainHeader";
 import TopMenu from "../../components/TopMenu";
 
-
 // Định nghĩa CheckoutItem
 function CheckoutItem({ product }) {
     return (
@@ -45,7 +44,7 @@ export default function Checkout() {
         try {
             console.log("Fetching cart for user:", currentUser.id);
             const cartResponse = await fetch(
-                `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
+                `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
             );
             if (!cartResponse.ok) {
                 throw new Error(`Failed to fetch cart: ${cartResponse.status}`);
@@ -66,7 +65,7 @@ export default function Checkout() {
                     cartItem.productId.map(async (product) => {
                         console.log(`Fetching product with id: ${product.idProduct}`);
                         const productResponse = await fetch(
-                            `http://localhost:9999/products?id=${product.idProduct}`
+                            `http://localhost:5000/products?id=${product.idProduct}`
                         );
                         if (!productResponse.ok) {
                             console.warn(`Failed to fetch product with id ${product.idProduct}: ${productResponse.status}`);
@@ -111,7 +110,7 @@ export default function Checkout() {
 
         try {
             console.log("Fetching address for user:", currentUser.id);
-            const userResponse = await fetch(`http://localhost:9999/user?id=${currentUser.id}`);
+            const userResponse = await fetch(`http://localhost:5000/user?id=${currentUser.id}`);
             if (!userResponse.ok) {
                 throw new Error(`Failed to fetch user: ${userResponse.status}`);
             }
@@ -160,72 +159,44 @@ export default function Checkout() {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     };
 
+    // Hàm thanh toán
     const handlePayment = async () => {
         if (!currentUser) {
-            alert("Please login to checkout");
-            navigate("/auth");
-            return;
+          alert("Please login to checkout");
+          navigate("/auth");
+          return;
         }
-
+      
         if (cartItems.length === 0) {
-            alert("Your cart is empty!");
-            return;
+          alert("Your cart is empty!");
+          return;
         }
-
-        const orderId = "ORD" + Math.floor(100 + Math.random() * 900);
+      
         const orderData = {
-            order_id: orderId,
-            user_id: currentUser.id,
-            order_date: new Date().toISOString(),
-            total_amount: parseFloat((getCartTotal() / 100).toFixed(2)),
-            status: "pending",
-            items: cartItems.map(item => ({
-                product_name: item.title,
-                quantity: item.quantity,
-                price: parseFloat((item.price / 100).toFixed(2)),
-            }))
+          amountUSD: getCartTotal() / 100, 
         };
-
+      
         try {
-            // 1. Lưu đơn hàng mới vào orders
-            await fetch("http://localhost:9999/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(orderData),
-            });
-
-            // 2. Cập nhật user.order_id
-            const updatedOrderIds = [...(currentUser.order_id || []), orderId];
-            await fetch(`http://localhost:9999/user/${currentUser.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ order_id: updatedOrderIds }),
-            });
-
-            // 3. Xoá toàn bộ giỏ hàng sau khi thanh toán
-            const cartRes = await fetch(`http://localhost:9999/shoppingCart?userId=${currentUser.id}`);
-            const cartData = await cartRes.json();
-            for (let cart of cartData) {
-                await fetch(`http://localhost:9999/shoppingCart/${cart.id}`, { method: "DELETE" });
-            }
-
-            // Cập nhật localStorage
-            localStorage.setItem("currentUser", JSON.stringify({ ...currentUser, order_id: updatedOrderIds }));
-
-            // Điều hướng đến trang success
-            navigate("/success", {
-                state: {
-                    cartItems: cartItems,
-                    addressDetails: addressDetails,
-                    orderTotal: getCartTotal(),
-                },
-            });
+          const response = await fetch("http://localhost:5000/pay/paypal", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(orderData),
+          });
+          const data = await response.json();
+      
+          if (data.id) {
+            // Redirect user to PayPal's approval page
+            window.location.href = `https://www.sandbox.paypal.com/checkoutnow?token=${data.id}`;
+          } else {
+            alert("Failed to create PayPal order.");
+          }
         } catch (error) {
-            console.error("Payment error:", error);
-            alert("Đã xảy ra lỗi khi thanh toán.");
+          console.error("Payment error:", error);
+          alert("An error occurred while processing payment.");
         }
-    };
-
+      };
 
     if (!currentUser) {
         return (
