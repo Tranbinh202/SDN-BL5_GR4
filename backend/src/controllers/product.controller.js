@@ -156,7 +156,7 @@ exports.getProductById = async (req, res) => {
 };
 
 // Đang bán
-exports.getProductsBySellerId = async (req, res) => {
+exports.getProductBySellerId = async (req, res) => {
   try {
     const { sellerId } = req.params;
 
