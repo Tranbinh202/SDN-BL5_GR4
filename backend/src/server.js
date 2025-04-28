@@ -47,7 +47,7 @@ app.use("/auth", require("./routes/auth.routes"));
 app.use("/api/products", productRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/messages", messageRoutes);
+app.use("/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/shoppingCart", shoppingCartRoutes);
