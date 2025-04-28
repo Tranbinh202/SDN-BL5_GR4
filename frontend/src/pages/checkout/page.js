@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Footer from "../../components/Footer";
 import SubMenu from "../../components/SubMenu";
 import MainHeader from "../../components/MainHeader";
@@ -376,7 +376,7 @@ export default function Checkout() {
   const updateUserAddress = async () => {
     try {
       const response = await fetch(
-        `http://localhost:5000/user/${currentUser.id}`,
+        `http://localhost:9999/user/${currentUser.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -472,7 +472,7 @@ export default function Checkout() {
 
     try {
       // 1. Lưu đơn hàng mới vào orders
-      await fetch("http://localhost:5000/orders", {
+      await fetch("http://localhost:9999/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
@@ -480,7 +480,7 @@ export default function Checkout() {
 
       // 2. Cập nhật user.order_id
       const updatedOrderIds = [...(currentUser.order_id || []), orderId];
-      await fetch(`http://localhost:5000/user/${currentUser.id}`, {
+      await fetch(`http://localhost:9999/user/${currentUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order_id: updatedOrderIds }),
@@ -488,11 +488,11 @@ export default function Checkout() {
 
       // 3. Xoá toàn bộ giỏ hàng sau khi thanh toán
       const cartRes = await fetch(
-        `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
+        `http://localhost:9999/shoppingCart?userId=${currentUser.id}`
       );
       const cartData = await cartRes.json();
       for (let cart of cartData) {
-        await fetch(`http://localhost:5000/shoppingCart/${cart.id}`, {
+        await fetch(`http://localhost:9999/shoppingCart/${cart.id}`, {
           method: "DELETE",
         });
       }

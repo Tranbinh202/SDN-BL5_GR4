@@ -33,9 +33,88 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+// Tạo sản phẩm
+exports.createProduct = async (req, res) => {
+  try {
+    const { title, description, price, images, categoryId, sellerId, status = "available" } = req.body;
+    
+    // Tạo sản phẩm mới
+    const newProduct = new Product({
+      title,
+      description,
+      price,
+      images,
+      categoryId,
+      sellerId,
+      status,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    const savedProduct = await newProduct.save();
+    
+    // Tạo tồn kho cho sản phẩm
+    if (req.body.quantity) {
+      const inventory = new Inventory({
+        productId: savedProduct._id,
+        quantity: req.body.quantity
+      });
+      await inventory.save();
+    }
+    
+    res.status(201).json(savedProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Cập nhật sản phẩm
-
-
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, price, images, categoryId, sellerId, status, quantity } = req.body;
+    
+    // Cập nhật thông tin sản phẩm
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      {
+        title,
+        description,
+        price,
+        images,
+        categoryId,
+        sellerId,
+        status,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!updatedProduct) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    
+    // Cập nhật tồn kho nếu có thông tin quantity
+    if (quantity !== undefined) {
+      const inventory = await Inventory.findOne({ productId: id });
+      
+      if (inventory) {
+        inventory.quantity = quantity;
+        await inventory.save();
+      } else if (quantity > 0) {
+        const newInventory = new Inventory({
+          productId: id,
+          quantity
+        });
+        await newInventory.save();
+      }
+    }
+    
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // Lấy chi tiết 1 sản phẩm
 exports.getProductById = async (req, res) => {
@@ -197,6 +276,54 @@ exports.getTotalQuantityOnSale = async (req, res) => {
     const totalDistinctProducts = uniqueProducts.length;
 
     res.json({ totalDistinctProducts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Ẩn/Hiện sản phẩm
+exports.hideProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    
+    // Toggle status giữa "available" và "hidden"
+    const newStatus = product.status === "available" ? "hidden" : "available";
+    
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { status: newStatus, updatedAt: new Date() },
+      { new: true }
+    );
+    
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Xóa sản phẩm
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Kiểm tra xem sản phẩm có tồn tại không
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    
+    // Xóa inventory liên quan
+    await Inventory.deleteOne({ productId: id });
+    
+    // Xóa sản phẩm
+    await Product.findByIdAndDelete(id);
+    
+    res.json({ message: 'Product deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
