@@ -25,7 +25,7 @@ export default function Success() {
             </p>
           </div>
 
-          {/* Danh sách sản phẩm (Order Summary) */}
+          {/* Danh sách sản phẩm (Order Summary)
           <div className="mb-6">
             <h3 className="text-md font-semibold mb-2">Order Summary</h3>
             {cartItems.length > 0 ? (
@@ -63,7 +63,7 @@ export default function Success() {
             ) : (
               <p className="text-sm text-gray-600">No items in your order.</p>
             )}
-          </div>
+          </div> */}
 
           {/* Địa chỉ giao hàng (Shipping Address) */}
           {addressDetails && Object.keys(addressDetails).length > 0 && (

@@ -26,39 +26,53 @@ import HelpContact from "./pages/help/page";
 import ProductList from "./pages/product/ProductList";
 import InventoryList from "./pages/inventory/InventoryList";
 import DisputeManage from "./pages/sellerProduct/disputeManage";
+import SuccessPay from "./pages/checkout/checkoutsuccess";
+import CancelPay from "./pages/checkout/checkoutcancel";
+
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+ 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/cart/" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/success" element={<Success />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/list-category/:categoryId" element={<ListCategory />} />
-        <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/sell" element={<Sell />} />
-        <Route path="/sellerProduct" element={<SellerProducts />} />
-        <Route path="/order-history" element={<OrderHistory />} />
-        <Route path="/search" element={<SearchResults />} />
-        <Route path="/totalSell" element={<TotalSell />} />
-        <Route path="/adminDashboard" element={<AdminDashboard />} />
-        <Route path="/auction-product" element={<AuctionProductDetail />} />
-        <Route path="/daily-deals" element={<DailyDeals />} />
-        <Route path="/help" element={<HelpContact />} />
-        <Route path="/products" element={<ProductList />} />
-        <Route path="/create-store" element={<CreateStore />} />
-        <Route path="/inventory" element={<InventoryList />} />
-        <Route path="/disputes" element={<DisputeManage />} />
-      </Routes>
-    </BrowserRouter>
+
+    <PayPalScriptProvider options={{
+      "client-id": "AR5FvA5Q8e6U5wa9aKkNlb8Y6TMpCYgLypQpVmZiAfRkFEujP3Gk5XP-_qYSfRjMylB9kwPNVkldfq0Z", // Replace with your actual PayPal client ID
+      currency: "USD",
+      intent: "capture",
+    }}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart/" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/success" element={<Success />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/list-category/:categoryId" element={<ListCategory />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/sell" element={<Sell />} />
+          <Route path="/sellerProduct" element={<SellerProducts />} />
+          <Route path="/order-history" element={<OrderHistory />} />
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/totalSell" element={<TotalSell />} />
+          <Route path="/adminDashboard" element={<AdminDashboard />} />
+          <Route path="/auction-product" element={<AuctionProductDetail />} />
+          <Route path="/daily-deals" element={<DailyDeals />} />
+          <Route path="/help" element={<HelpContact />} />
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/create-store" element={<CreateStore />} />
+          <Route path="/inventory" element={<InventoryList />} />
+          <Route path="/disputes" element={<DisputeManage />} />
+          <Route path="/successpay" element={<SuccessPay/>}/>
+          <Route path="/cancelpay" element={<CancelPay/>}/>
+     
+     
+        </Routes>
+      </BrowserRouter>
+    </PayPalScriptProvider>
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+
 reportWebVitals();
