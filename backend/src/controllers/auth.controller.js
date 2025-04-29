@@ -327,3 +327,35 @@ exports.getStore = async (req, res) => {
     });
   }
 };
+exports.getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        sellerName: user.username,
+        fullname: user.fullname,
+        email: user.email,
+        avatarURL: user.avatarURL,
+      },
+    });
+  } catch (error) {
+    logger.error("Get user by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error getting user data",
+      error: error.message,
+    });
+  }
+};
