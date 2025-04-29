@@ -12,15 +12,11 @@ const messageRoutes = require("./routes/message.routes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const disputeRoutes = require("./routes/dispute.routes");
-<<<<<<< HEAD
-const cartRouter = require('./routes/cartRouter');
-const couponRoutes = require('./routes/coupon.routes');
-const paymentRoutes = require('./routes/paypal.routes');
-=======
+
 const cartRouter = require("./routes/cartRouter");
 const couponRoutes = require("./routes/coupon.routes");
+const paymentRoutes = require("./routes/paypal.routes");
 const shoppingCartRoutes = require("./routes/shippingCartRoutes");
->>>>>>> Quang-Minh
 
 dotenv.config();
 
@@ -56,11 +52,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/disputes", disputeRoutes);
-<<<<<<< HEAD
-app.use('/api/payments', paymentRoutes);
-=======
-app.use("/shoppingCart", shoppingCartRoutes);
->>>>>>> Quang-Minh
+app.use("/api/payments", paymentRoutes);
 
 // Sử dụng route cho giỏ hàng
 app.use("/api/cart", cartRouter);

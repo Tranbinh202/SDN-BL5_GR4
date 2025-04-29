@@ -179,7 +179,6 @@ export default function ProductDetail() {
             Contact seller
           </button>
         )}
-        {/* Product Chat Component */}
         {product &&
           product.sellerId._id &&
           currentUser &&
