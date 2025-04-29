@@ -58,30 +58,6 @@ function CheckoutItem({ product }) {
   );
 }
 
-// Send mail
-const sendOrderConfirmationEmail = async (orderDetails, customerEmail) => {
-    try {
-        const response = await fetch("http://localhost:5000/api/email/send-order-confirmation", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-            body: JSON.stringify({ orderDetails, customerEmail }),
-        });
-
-        if (!response.ok) {
-            throw new Error("Failed to send order confirmation email");
-        }
-
-        const data = await response.json();
-        console.log("Order confirmation email sent successfully:", data);
-    } catch (error) {
-        console.error("Error sending order confirmation email:", error);
-        throw error;
-    }
-};
-
 export default function Checkout() {
   const [payPalApprovalUrl, setPayPalApprovalUrl] = useState("");
   const navigate = useNavigate();
@@ -535,6 +511,50 @@ export default function Checkout() {
       shipping_address: shippingAddress,
     };
 
+    const orderDataPayment = {
+      order_id: orderId ?? "ORD123456", // Mặc định mã đơn hàng mẫu
+      user_id: currentUser?.id ?? "user_abc123", // Mặc định user giả lập
+      order_date: new Date().toISOString(), // Ngày hiện tại
+      total_amount: parseFloat((getFinalTotal() / 100).toFixed(2)) || 0, // Mặc định 0 nếu lỗi
+      status: "completed", // Trạng thái mặc định
+      items:
+        cartItems.length > 0
+          ? cartItems.map((item) => ({
+              product_name: item.title ?? "Unknown Product",
+              quantity: item.quantity ?? 1,
+              price: parseFloat((item.price / 100).toFixed(2)) || 0,
+            }))
+          : [
+              {
+                product_name: "Sample Item",
+                quantity: 1,
+                price: 9.99,
+              },
+            ],
+      shipping_fee: parseFloat((shippingFee / 100).toFixed(2)) || 0,
+      discount_code: discountCode || null,
+      discount_amount: parseFloat((discountAmount / 100).toFixed(2)) || 0,
+      shipping_address: shippingAddress ?? {
+        name: "Guest Customer",
+        address: "No address provided",
+        phone: "0000000000",
+        country: "Unknown",
+      },
+    };
+
+    // 2. Gửi email xác nhận
+    await fetch("http://localhost:5000/api/email/send-order-confirmation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({
+        orderDetails: orderDataPayment,
+        customerEmail: currentUser.email ?? "sonpthe172490@fpt.edu.vn",
+      }),
+    });
+
     try {
       await fetch("http://localhost:5000/api/admin/orders", {
         method: "POST",
@@ -543,7 +563,7 @@ export default function Checkout() {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(orderData),
-      });
+      }); 
 
       const cartRes = await fetch(`http://localhost:5000/api/cart`, {
         headers: {
@@ -962,33 +982,65 @@ export default function Checkout() {
                   </div>
 
                   <PayPalButtons
-                    createOrder={(data, actions) => {
-                      return actions.order.create({
-                        purchase_units: [
-                          {
-                            amount: {
-                              value: getFinalTotal(),
+                    style={{ layout: "vertical" }}
+                    onClick={async () => {
+                      await handlePayment(); // Gửi đơn + gửi mail ngay khi người dùng bấm nút
+                    }}
+                    createOrder={async (data, actions) => {
+                      try {
+                        // Sau đó mới tạo đơn PayPal
+                        return actions.order.create({
+                          purchase_units: [
+                            {
+                              amount: {
+                                value: (getFinalTotal() / 100).toFixed(2), // chuyển tổng tiền ra decimal
+                              },
                             },
-                          },
-                        ],
-                      });
+                          ],
+                        });
+                      } catch (error) {
+                        console.error("Error creating PayPal order:", error);
+                        alert(
+                          "Có lỗi khi gửi đơn hàng hoặc gửi mail, vui lòng thử lại!"
+                        );
+                      }
                     }}
                     onApprove={async (data, actions) => {
-                      const captureData = await actions.order.capture();
+                      try {
+                        const captureData = await actions.order.capture();
+                        console.log("Capture success:", captureData);
 
-                      await fetch(
-                        "http://localhost:5000/api/paypal/capture-payment",
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            orderId: captureData.id,
-                            payerId: captureData.payer.payer_id,
-                          }),
-                        }
-                      );
+                        await fetch(
+                          "http://localhost:5000/api/paypal/capture-payment",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              orderId: captureData.id,
+                              payerId: captureData.payer.payer_id,
+                            }),
+                          }
+                        );
 
-                      navigate("/success");
+                        navigate("/success", {
+                          state: {
+                            cartItems,
+                            addressDetails: addressDetails || formAddress,
+                            orderTotal: getFinalTotal(),
+                            shippingFee,
+                            discountAmount,
+                          },
+                        });
+                      } catch (error) {
+                        console.error("Error capturing payment:", error);
+                        alert(
+                          "Có lỗi xảy ra trong quá trình thanh toán PayPal."
+                        );
+                      }
+                    }}
+                    onError={(err) => {
+                      console.error("PayPal Error:", err);
+                      alert("Thanh toán PayPal thất bại!");
                     }}
                   />
                 </div>

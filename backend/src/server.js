@@ -17,6 +17,7 @@ const cartRouter = require("./routes/cartRouter");
 const couponRoutes = require("./routes/coupon.routes");
 const paymentRoutes = require("./routes/paypal.routes");
 const shoppingCartRoutes = require("./routes/shippingCartRoutes");
+const emailRoutes = require("./routes/email.routes");
 
 dotenv.config();
 

@@ -13,22 +13,53 @@ const transporter = nodemailer.createTransport({
 
 // Function to send order confirmation email
 const sendOrderConfirmationEmail = async (orderDetails, customerEmail) => {
+    const { order_id, total_amount, items = [], shipping_address } = orderDetails;
+
+    // Build danh sách sản phẩm HTML
+    const itemsHtml = items.map((item) => `
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.product_name}</td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">£${item.price.toFixed(2)}</td>
+        </tr>
+    `).join("");
+
     const mailOptions = {
         from: 'sonpthe172490@fpt.edu.vn',
         to: customerEmail,
-        subject: 'Order Confirmation - Your Purchase is Confirmed',
+        subject: `Order Confirmation - ${order_id}`,
         html: `
-            <h1>Thank you for your order!</h1>
-            <p>Your order has been successfully placed and confirmed.</p>
-            <h2>Order Details:</h2>
-            <ul>
-                <li>Order ID: ${orderDetails.orderId}</li>
-                <li>Total Amount: £${orderDetails.totalAmount}</li>
-                <li>Payment Method: ${orderDetails.paymentMethod}</li>
-                <li>Shipping Address: ${orderDetails.shippingAddress.address}</li>
-            </ul>
-            <p>We will notify you when your order is shipped.</p>
-            <p>Thank you for shopping with us!</p>
+            <div style="font-family: Arial, sans-serif; color: #333;">
+                <h1>Thank you for your order!</h1>
+                <p>Your order <strong>${order_id}</strong> has been successfully placed and confirmed.</p>
+
+                <h2>Shipping Information</h2>
+                <p>
+                    <strong>Name:</strong> ${shipping_address?.name || "N/A"}<br/>
+                    <strong>Address:</strong> ${shipping_address?.address || "N/A"}<br/>
+                    <strong>Phone:</strong> ${shipping_address?.phone || "N/A"}<br/>
+                    <strong>Country:</strong> ${shipping_address?.country || "N/A"}
+                </p>
+
+                <h2>Order Details</h2>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2;">
+                            <th style="padding: 8px; border: 1px solid #ddd;">Product</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Quantity</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+
+                <h3 style="text-align: right;">Total: £${total_amount.toFixed(2)}</h3>
+
+                <p>We will notify you when your order is shipped.</p>
+                <p>Thank you for shopping with us!</p>
+            </div>
         `
     };
 
