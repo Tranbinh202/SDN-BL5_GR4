@@ -5,7 +5,6 @@ import SubMenu from "../../components/SubMenu";
 import MainHeader from "../../components/MainHeader";
 import TopMenu from "../../components/TopMenu";
 import { PayPalButtons } from "@paypal/react-paypal-js";
-// Enable or disable debug logging
 const DEBUG = false;
 
 // Log helper function
@@ -64,7 +63,8 @@ export default function Checkout() {
   const [cartItems, setCartItems] = useState([]);
   const [addressDetails, setAddressDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Store the user ID as a separate value to avoid recreating the currentUser object
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderId, setOrderId] = useState(null);
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
   const userId = currentUser?.id;
 
@@ -474,7 +474,6 @@ export default function Checkout() {
       return;
     }
 
-    // Nếu đang hiển thị form, thử xác thực và lưu thông tin
     if (showAddressForm) {
       const isValid = validateAndSaveAddress();
       if (!isValid) {
@@ -483,7 +482,6 @@ export default function Checkout() {
       }
     }
 
-    // Sử dụng thông tin địa chỉ từ formAddress nếu đang hiển thị form
     const shippingAddress = showAddressForm
       ? formAddress
       : addressDetails || {
@@ -493,9 +491,11 @@ export default function Checkout() {
           country: "Vietnam",
         };
 
-    const orderId = "ORD" + Math.floor(100 + Math.random() * 900);
+    const orderIdGenerated = "ORD" + Math.floor(100 + Math.random() * 900);
+    setOrderId(orderIdGenerated);
+
     const orderData = {
-      order_id: orderId,
+      order_id: orderIdGenerated,
       user_id: currentUser.id,
       order_date: new Date().toISOString(),
       total_amount: parseFloat((getFinalTotal() / 100).toFixed(2)),
@@ -512,14 +512,21 @@ export default function Checkout() {
     };
 
     try {
-      await fetch("http://localhost:5000/api/admin/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(orderData),
-      });
+      const orderResponse = await fetch(
+        "http://localhost:5000/api/admin/orders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(orderData),
+        }
+      );
+
+      if (orderResponse.ok) {
+        setOrderCreated(true);
+      }
 
       const cartRes = await fetch(`http://localhost:5000/api/cart`, {
         headers: {
@@ -528,7 +535,6 @@ export default function Checkout() {
       });
       const cartData = await cartRes.json();
 
-      // Xóa từng sản phẩm trong giỏ hàng
       for (let product of cartData.cart?.products || []) {
         await fetch(
           `http://localhost:5000/api/cart/remove/${product.productId._id}`,
@@ -540,16 +546,16 @@ export default function Checkout() {
           }
         );
       }
-      const orderData = {
-        orderId: `ORD${Math.floor(100 + Math.random() * 900)}`,
-        totalAmount: getFinalTotal(), // Use your method to calculate the final amount
+      const orderPayPalData = {
+        orderId: orderIdGenerated,
+        totalAmount: getFinalTotal(),
       };
       const response = await fetch(
         "http://localhost:5000/api/paypal/create-order",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orderData),
+          body: JSON.stringify(orderPayPalData),
         }
       );
 
@@ -561,7 +567,6 @@ export default function Checkout() {
         alert("Error while creating PayPal order");
       }
 
-      // Điều hướng đến trang success
       navigate("/success", {
         state: {
           cartItems: cartItems,
@@ -569,6 +574,7 @@ export default function Checkout() {
           orderTotal: getFinalTotal(),
           shippingFee: shippingFee,
           discountAmount: discountAmount,
+          orderId: orderIdGenerated,
         },
       });
     } catch (error) {
@@ -979,6 +985,7 @@ export default function Checkout() {
             </div>
           )}
         </div>
+
         <div>
           <Footer />
         </div>

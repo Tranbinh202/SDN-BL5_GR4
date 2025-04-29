@@ -9,11 +9,31 @@ const orderSchema = new Schema(
     totalPrice: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["pending", "shipping", "shipped", "failed to ship", "rejected"],
+      enum: [
+        "pending",
+        "paid",
+        "shipping",
+        "shipped",
+        "cancelled",
+        "failed to ship",
+        "rejected",
+      ],
       default: "pending",
     },
+    cancellationReason: { type: String },
+    paymentDueDate: { type: Date },
   },
   { timestamps: true }
 );
+
+orderSchema.pre("save", function (next) {
+  if (this.isNew && !this.paymentDueDate) {
+    const PAYMENT_TIMEOUT_MINUTES = 5;
+    this.paymentDueDate = new Date(
+      Date.now() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000
+    );
+  }
+  next();
+});
 
 module.exports = mongoose.model("Order", orderSchema);

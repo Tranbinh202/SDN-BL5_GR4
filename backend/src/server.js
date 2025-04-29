@@ -12,6 +12,7 @@ const messageRoutes = require("./routes/message.routes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const disputeRoutes = require("./routes/dispute.routes");
+const orderTimeoutService = require("./services/orderTimeout");
 
 const cartRouter = require("./routes/cartRouter");
 const couponRoutes = require("./routes/coupon.routes");
@@ -37,6 +38,9 @@ dotenv.config();
 
 // Connect to MongoDB
 connectDB();
+
+// Initialize order timeout service with socket.io for notifications
+orderTimeoutService.init(io);
 
 // Middleware
 app.use(cors());
@@ -157,6 +161,17 @@ io.on("connection", (socket) => {
       socket.to(connectedUsers[receiverId]).emit("userStopTyping", {
         userId: senderId,
         productId,
+      });
+    }
+  });
+
+  // Handle order cancellation event
+  socket.on("orderCancelled", (data) => {
+    const { buyerId, orderId } = data;
+    if (connectedUsers[buyerId]) {
+      socket.to(connectedUsers[buyerId]).emit("orderCancellationNotification", {
+        orderId,
+        message: "Your order has been cancelled due to payment timeout.",
       });
     }
   });

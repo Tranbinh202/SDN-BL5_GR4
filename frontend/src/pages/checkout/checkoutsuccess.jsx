@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import PaymentTimer from "./PaymentTimer";
 
 const SuccessPay = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const [orderDetails, setOrderDetails] = useState(null);
+  const [timerExpired, setTimerExpired] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -15,7 +17,6 @@ const SuccessPay = () => {
 
       if (orderId && payerId) {
         try {
-          // Call your backend to verify and capture the payment
           const response = await fetch(`/api/paypal/capture`, {
             method: "POST",
             headers: {
@@ -23,9 +24,9 @@ const SuccessPay = () => {
             },
             body: JSON.stringify({ orderID: orderId }),
           });
-          
+
           const data = await response.json();
-          
+
           if (data.success) {
             setOrderDetails(data.payment);
           } else {
@@ -42,12 +43,34 @@ const SuccessPay = () => {
     fetchOrderDetails();
   }, [location.search, navigate]);
 
+  const handleTimerExpire = () => {
+    setTimerExpired(true);
+    alert(
+      "Your payment time has expired. The order may be automatically cancelled."
+    );
+    navigate("/checkout");
+  };
+
+  const calculateRemainingMinutes = () => {
+    if (!orderDetails || !orderDetails.paymentDueDate) return 30; // Default 30 minutes
+
+    const dueDate = new Date(orderDetails.paymentDueDate);
+    const now = new Date();
+    const diffMs = dueDate - now;
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000)); // Milliseconds to minutes
+
+    return diffMinutes;
+  };
+
   return (
     <div className="container">
       {orderDetails ? (
         <div>
           <h1>Payment Successful!</h1>
-          <p>Thank you for your purchase. Your order has been successfully processed.</p>
+          <p>
+            Thank you for your purchase. Your order has been successfully
+            processed.
+          </p>
           <div>
             <h3>Order Details:</h3>
             <p>Order ID: {orderDetails.orderId}</p>
@@ -59,6 +82,19 @@ const SuccessPay = () => {
         <div>
           <h1>Processing...</h1>
           <p>Please wait while we finalize your payment.</p>
+
+          {!orderDetails && !timerExpired && (
+            <div className="mt-6 p-4 border border-yellow-300 bg-yellow-50 rounded-md">
+              <PaymentTimer
+                initialMinutes={calculateRemainingMinutes()}
+                onExpire={handleTimerExpire}
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                Please complete your payment before the timer expires to avoid
+                order cancellation.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
