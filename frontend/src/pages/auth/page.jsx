@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function AuthPage() {
+  const [params] = useSearchParams();
+
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -26,7 +28,62 @@ export default function AuthPage() {
 
   // API base URL
   const API_URL = "http://localhost:5000/api";
+  const getGoogleAuthUrl = () => {
+    const url = "https://accounts.google.com/o/oauth2/auth";
+    const query = {
+      client_id:
+        "1065435437989-s24vtub6m0damkbqslkfoplhdg1s5ssg.apps.googleusercontent.com",
+      redirect_uri: "http://localhost:5000/api/auth/oauth/google",
+      response_type: "code",
+      scope: [
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+      ].join(" "),
+      prompt: "consent",
+      access_type: "offline",
+    };
+    const queryString = new URLSearchParams(query).toString();
+    return `${url}?${queryString}`;
+  };
 
+  const googleOAuthUrl = getGoogleAuthUrl();
+
+  const exchangeCodeForToken = async (code) => {
+    try {
+      const response = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          code,
+          client_id:
+            "1065435437989-s24vtub6m0damkbqslkfoplhdg1s5ssg.apps.googleusercontent.com",
+          client_secret: "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",
+          redirect_uri: "http://localhost:5000/auth/oauth/google",
+          grant_type: "authorization_code",
+        }),
+      });
+      return await response.json();
+    } catch (error) {
+      throw new Error(`Failed to exchange code for token: ${error}`);
+    }
+  };
+
+  useEffect(() => {
+    const code = params.get("code");
+    if (code) {
+      exchangeCodeForToken(code)
+        .then((res) => {
+          const { access_token } = res;
+          localStorage.setItem("access_token", access_token);
+          navigate("/");
+        })
+        .catch((error) => {
+          ///console.error("Error exchanging code for token:", error);
+        });
+    }
+  }, [params, navigate]);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -329,12 +386,17 @@ export default function AuthPage() {
           </div>
 
           <button
-            type="button"
-            className="flex items-center justify-center gap-2 p-3 border rounded-md hover:bg-gray-50"
-            onClick={() => alert("Đăng nhập bằng Google")}
+            onClick={() => (window.location.href = googleOAuthUrl)}
+            className="w-full px-6 py-3 bg-white/10 hover:bg-white/15 backdrop-blur-sm
+              text-white rounded-md transition-colors duration-200 border border-white/30 flex items-center justify-center"
           >
-            <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
-            Tiếp tục với Google
+            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+              />
+            </svg>
+            Login with Google
           </button>
         </form>
       </div>

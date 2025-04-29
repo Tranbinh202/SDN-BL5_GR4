@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const UsersService = require("../services/usersService");
 // Import Address model directly as it's used in register
 const { User, Address, Store } = require("../models");
 const logger = require("../utils/logger");
@@ -358,4 +359,18 @@ exports.getUserById = async (req, res) => {
       error: error.message,
     });
   }
+};
+exports.oauthController = async (req, res) => {
+  const { code } = req.query;
+  const result = await UsersService.oauth(code);
+  const urlRedirect = `http://localhost:3000/login/oauth?access_token=${result.access_token}&new_user=${result.newUser}&verify=${result.verify}`;
+  res.redirect(urlRedirect);
+  res.status(200).json({
+    message: result.newUser
+      ? USERS_MESSAGES.REGISTER_SUCCESS
+      : USERS_MESSAGES.LOGIN_SUCCESS,
+    result: {
+      access_token: result.access_token,
+    },
+  });
 };

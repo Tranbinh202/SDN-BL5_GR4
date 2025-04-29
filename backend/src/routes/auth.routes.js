@@ -10,4 +10,6 @@ router.post("/logout", authMiddleware, authController.logout);
 router.post("/create-store", authMiddleware, authController.createStore);
 router.get("/store", authMiddleware, authController.getStore);
 router.get("/users/:userId", authMiddleware, authController.getUserById);
+router.get("/oauth/google", authController.oauthController);
+
 module.exports = router;
