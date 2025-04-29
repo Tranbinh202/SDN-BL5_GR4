@@ -16,7 +16,7 @@ const debugLog = (...args) => {
 const loggedErrors = new Set();
 
 // Custom error logger that ensures each unique error is only logged once
-const logErrorOnce = (error, context = '') => {
+const logErrorOnce = (error, context = "") => {
   const errorKey = `${context}:${error.message || error}`;
   if (!loggedErrors.has(errorKey)) {
     console.error(`[${context}]`, error);
@@ -47,23 +47,17 @@ export default function TopMenu() {
 
       try {
         debugLog("Fetching cart count for user:", currentUser.id);
-        const response = await fetch(
-<<<<<<< HEAD
-          `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
-=======
-          `http://localhost:5000/api/cart`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
->>>>>>> main
-        );
+        const response = await fetch(`http://localhost:5000/api/cart`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch cart: ${response.status}`);
         }
         const data = await response.json();
         debugLog("Cart items for count:", data);
-        
+
         // Update to match the correct API response structure
         const totalProducts = data.cart?.products?.length || 0;
         setCartCount(totalProducts);
@@ -75,7 +69,7 @@ export default function TopMenu() {
 
     // Only fetch once when user changes, not every 3 seconds
     fetchCartCount();
-    
+
     // No need for polling interval that could cause excessive API calls
     // const interval = setInterval(fetchCartCount, 3000);
     // return () => clearInterval(interval);
@@ -85,24 +79,21 @@ export default function TopMenu() {
     if (currentUser) {
       const fetchCartCount = async () => {
         try {
-          debugLog("Fetching cart count on route change for user:", currentUser.id);
-          const response = await fetch(
-<<<<<<< HEAD
-            `http://localhost:5000/shoppingCart?userId=${currentUser.id}`
-=======
-            `http://localhost:5000/api/cart`, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
->>>>>>> main
+          debugLog(
+            "Fetching cart count on route change for user:",
+            currentUser.id
           );
+          const response = await fetch(`http://localhost:5000/api/cart`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
           if (!response.ok) {
             throw new Error(`Failed to fetch cart: ${response.status}`);
           }
           const data = await response.json();
           debugLog("Cart items on route change:", data);
-          
+
           // Update to match the correct API response structure
           const totalProducts = data.cart?.products?.length || 0;
           setCartCount(totalProducts);
